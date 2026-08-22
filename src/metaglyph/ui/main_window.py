@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -35,6 +35,8 @@ logger = logging.getLogger(__name__)
 
 class MainWindow(QMainWindow):
     """Metaglyph primary desktop window hosting navigation, views, and detail drawer."""
+
+    closed = Signal()
 
     def __init__(
         self,
@@ -162,7 +164,7 @@ class MainWindow(QMainWindow):
         self.search_view.sync_requested.connect(self.start_catalog_sync)
 
         # Detail Pane
-        self.detail_pane.closed.connect(lambda: self.detail_pane.setVisible(False))
+        self.detail_pane.closed.connect(self._on_detail_pane_closed)
         self.detail_pane.nerd_switch_requested.connect(self._on_nerd_switch_requested)
         self.detail_pane.install_completed.connect(self._on_install_completed)
         self.detail_pane.uninstall_completed.connect(self._on_uninstall_completed)
@@ -349,3 +351,20 @@ class MainWindow(QMainWindow):
             self.system_view.trigger_refresh()
         except RuntimeError:
             pass
+
+    def _on_detail_pane_closed(self) -> None:
+        """Handle detail pane closed event and clear search selection."""
+        self.detail_pane.setVisible(False)
+        if self.search_view:
+            self.search_view.clear_selection()
+
+    def closeEvent(self, event) -> None:
+        """Clean up tasks and emit closed signal before closing main window."""
+        if self._sync_task and not self._sync_task.done():
+            self._sync_task.cancel()
+        if hasattr(self, "discover_view") and hasattr(self.discover_view, "cleanup"):
+            self.discover_view.cleanup()
+        if hasattr(self, "detail_pane") and hasattr(self.detail_pane, "cleanup"):
+            self.detail_pane.cleanup()
+        self.closed.emit()
+        super().closeEvent(event)

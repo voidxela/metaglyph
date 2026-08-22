@@ -81,6 +81,8 @@ class MetaglyphApp:
         await self.initialize()
 
         window = self.build_ui()
+        assert self.qapp is not None
+        self.qapp.setQuitOnLastWindowClosed(False)
         window.show()
 
         # Connect application close to cleanup
@@ -90,7 +92,7 @@ class MetaglyphApp:
             if not exit_future.done():
                 exit_future.set_result(0)
 
-        assert self.qapp is not None
+        window.closed.connect(on_app_exit)
         self.qapp.aboutToQuit.connect(on_app_exit)
 
         try:
@@ -100,6 +102,13 @@ class MetaglyphApp:
 
     async def shutdown(self) -> None:
         """Gracefully release database and network provider resources."""
+        current_task = asyncio.current_task()
+        pending = [t for t in asyncio.all_tasks() if t is not current_task and not t.done()]
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+
         try:
             await self.provider_manager.close()
         except Exception as exc:
@@ -109,6 +118,9 @@ class MetaglyphApp:
             await self.db_manager.close()
         except Exception as exc:
             logger.debug("Error closing database manager: %s", exc)
+
+        if self.qapp is not None:
+            self.qapp.quit()
 
 
 def run_app() -> int:
