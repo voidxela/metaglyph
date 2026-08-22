@@ -90,7 +90,9 @@ class DetailPane(QFrame):
             user_installer=self.user_installer,
             system_installer=self.system_installer,
         )
-        self.subset_fetcher = subset_fetcher
+        self.subset_fetcher = subset_fetcher or SubsetFetcher(
+            provider_manager=self.provider_manager
+        )
 
         self._font: Font | None = None
         self._installed_record: InstalledFont | None = None
@@ -338,8 +340,66 @@ class DetailPane(QFrame):
         # Clear feedback
         self._feedback_label.setVisible(False)
 
-        # Check installation status asynchronously
+        # Trigger subset fetch for current variant and check installation status
+        self._trigger_subset_load()
         self._trigger_check_installed()
+
+    def _trigger_subset_load(self) -> None:
+        """Trigger async subset fetch for active font variant."""
+        if not self._font or not self.subset_fetcher:
+            return
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._load_subset_async())
+        except RuntimeError:
+            pass
+
+    async def _load_subset_async(self) -> None:
+        """Fetch and register authentic variant subset in QFontDatabase."""
+        if not self._font or not self.subset_fetcher:
+            return
+
+        font = self._font
+        weight_text = self._weight_combo.currentText()
+        weight_val = WEIGHT_MAP.get(weight_text, 400)
+        is_italic = self._italic_check.isChecked()
+        style_val = "italic" if is_italic else "normal"
+        sample = self._preview.sample_text or self._sample_editor.toPlainText() or get_config().default_sample_text
+
+        target_variant: FontVariant | None = None
+        if font.variants:
+            for v in font.variants:
+                if v.weight == weight_val and v.style == style_val:
+                    target_variant = v
+                    break
+
+        if target_variant is None:
+            target_variant = FontVariant(
+                font_id=font.id,
+                provider=font.primary_provider,
+                style=style_val,
+                weight=weight_val,
+                file_format="ttf",
+                download_url="",
+            )
+
+        try:
+            _, family_name = await self.subset_fetcher.get_or_fetch_subset(
+                font=font,
+                sample_text=sample,
+                variant=target_variant,
+            )
+            if family_name and self._font and self._font.id == font.id:
+                self._preview.set_font_family(family_name)
+        except Exception as exc:
+            logger.debug(
+                "Failed to fetch variant subset for %s (%d %s): %s",
+                font.family_name,
+                weight_val,
+                style_val,
+                exc,
+            )
 
     def _trigger_check_installed(self) -> None:
         try:
@@ -379,9 +439,11 @@ class DetailPane(QFrame):
     def _on_weight_changed(self, text: str) -> None:
         weight_val = WEIGHT_MAP.get(text, 400)
         self._preview.set_font_weight(weight_val)
+        self._trigger_subset_load()
 
     def _on_italic_toggled(self, checked: bool) -> None:
         self._preview.set_italic(checked)
+        self._trigger_subset_load()
 
     def _on_preset_selected(self, preset_name: str) -> None:
         if preset_name in SAMPLE_PRESETS:
@@ -390,6 +452,7 @@ class DetailPane(QFrame):
     def _on_sample_text_changed(self) -> None:
         text = self._sample_editor.toPlainText().strip()
         self._preview.set_sample_text(text if text else get_config().default_sample_text)
+        self._trigger_subset_load()
 
     def _on_nerd_switch_requested(self, slug: str, variant: str) -> None:
         self.nerd_switch_requested.emit(slug, variant)

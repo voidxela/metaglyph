@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from PySide6.QtCore import Qt
 
@@ -210,3 +210,25 @@ async def test_detail_pane_install_error_handling(
     assert result.success is False
     assert not pane._feedback_label.isHidden()
     assert "Installation error" in pane._feedback_label.text()
+
+
+@pytest.mark.asyncio
+async def test_detail_pane_weight_change_triggers_subset_load(
+    sample_font_jetbrains: Font,
+) -> None:
+    mock_fetcher = MagicMock()
+    mock_fetcher.get_or_fetch_subset = AsyncMock(
+        return_value=(Path("/tmp/subset.ttf"), "JetBrains Mono Bold")
+    )
+
+    pane = DetailPane(subset_fetcher=mock_fetcher)
+    pane.set_font(sample_font_jetbrains)
+
+    # Change weight to Bold (700)
+    pane._weight_combo.setCurrentText("Bold (700)")
+    await pane._load_subset_async()
+
+    assert mock_fetcher.get_or_fetch_subset.called
+    call_args = mock_fetcher.get_or_fetch_subset.call_args
+    assert call_args.kwargs["variant"].weight == 700
+    assert pane._preview.font_family == "JetBrains Mono Bold"
