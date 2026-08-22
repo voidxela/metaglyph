@@ -204,18 +204,23 @@ class SystemFontItemWidget(QFrame):
         details_layout.setSpacing(8)
 
         # Load font into Qt application font database if file exists on disk
+        preview_family = self.family_name
         if self.file_path and Path(self.file_path).exists():
             try:
-                QFontDatabase.addApplicationFont(self.file_path)
-            except Exception:
-                pass
+                fid = QFontDatabase.addApplicationFont(str(self.file_path))
+                if fid >= 0:
+                    fams = QFontDatabase.applicationFontFamilies(fid)
+                    if fams:
+                        preview_family = fams[0]
+            except Exception as e:
+                logger.debug("Failed to load application font %s: %s", self.file_path, e)
 
         # Live Font Preview in Details Box
         is_italic = "italic" in self.style_name.lower() or "oblique" in self.style_name.lower()
         self.preview_widget = FontPreviewWidget(
-            font_family=self.family_name,
+            font_family=preview_family,
             sample_text="The quick brown fox jumps over the lazy dog 1234567890",
-            point_size=15.0,
+            point_size=20.0,
             weight=_variant_to_qfont_weight(self.style_name),
             italic=is_italic,
             parent=self.details_box,
@@ -645,9 +650,9 @@ class SystemView(QWidget):
         self._scope_group.setExclusive(True)
 
         scopes = [
-            ("All Local", None),
-            ("User Scope", "User"),
-            ("System Scope", "System"),
+            ("All", None),
+            ("User", "User"),
+            ("System", "System"),
         ]
 
         for label, val in scopes:
@@ -662,7 +667,7 @@ class SystemView(QWidget):
             filter_layout.addWidget(btn)
 
         # Managed only toggle
-        self._managed_toggle = QPushButton("Metaglyph Managed", self)
+        self._managed_toggle = QPushButton("Managed", self)
         self._managed_toggle.setProperty("class", "filter-chip")
         self._managed_toggle.setCheckable(True)
         self._managed_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1043,18 +1048,45 @@ class SystemView(QWidget):
         except Exception as exc:
             logger.error("Failed to refresh system view: %s", exc)
 
+    def _is_item_managed(self, item: object) -> bool:
+        """Check if an item is tracked/managed by Metaglyph."""
+        if isinstance(item, InstalledFont):
+            return True
+        if isinstance(item, SystemFontCacheEntry):
+            return item.is_metaglyph_managed
+        return getattr(item, "is_managed", False)
+
     def _on_single_uninstall_requested(self, item: object) -> None:
         """Handle individual font uninstall button click with confirmation."""
         family_name = getattr(item, "family_name", "Font")
-        msg = f"Are you sure you want to uninstall '{family_name}'?\nThis will remove the font file(s) from your system."
+        is_managed = self._is_item_managed(item)
 
-        reply = QMessageBox.question(
-            self,
-            "Confirm Font Uninstallation",
-            msg,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
+        if not is_managed:
+            title = "Warning: Unmanaged System Font"
+            msg = (
+                f"Are you sure you want to uninstall '{family_name}'?\n\n"
+                "Warning: This is an unmanaged font not installed via Metaglyph. "
+                "Removing unmanaged system fonts may cause unintended effects (such as application rendering glitches or broken system UI), "
+                "and they could be reinstalled by the system package manager.\n\n"
+                "Do you wish to proceed with uninstallation?"
+            )
+            reply = QMessageBox.warning(
+                self,
+                title,
+                msg,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+        else:
+            title = "Confirm Font Uninstallation"
+            msg = f"Are you sure you want to uninstall '{family_name}'?\nThis will remove the font file(s) from your system."
+            reply = QMessageBox.question(
+                self,
+                title,
+                msg,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
 
         if reply == QMessageBox.StandardButton.Yes:
             try:
@@ -1094,18 +1126,36 @@ class SystemView(QWidget):
             return
 
         count = len(selected_items)
-        msg = (
-            f"Are you sure you want to batch uninstall {count} selected font(s)?\n"
-            "This will remove the font files from your local user/system directories."
-        )
+        has_unmanaged = any(not self._is_item_managed(it) for it in selected_items)
 
-        reply = QMessageBox.question(
-            self,
-            "Confirm Batch Uninstallation",
-            msg,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
+        if has_unmanaged:
+            title = "Warning: Unmanaged System Fonts Selected"
+            msg = (
+                f"Are you sure you want to batch uninstall {count} selected font(s)?\n\n"
+                "Warning: One or more selected fonts are unmanaged system fonts not installed via Metaglyph. "
+                "Removing unmanaged system fonts may cause unintended effects and they could be reinstalled by the system package manager.\n\n"
+                "Do you wish to proceed with uninstallation?"
+            )
+            reply = QMessageBox.warning(
+                self,
+                title,
+                msg,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+        else:
+            title = "Confirm Batch Uninstallation"
+            msg = (
+                f"Are you sure you want to batch uninstall {count} selected font(s)?\n"
+                "This will remove the font files from your local user/system directories."
+            )
+            reply = QMessageBox.question(
+                self,
+                title,
+                msg,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
 
         if reply == QMessageBox.StandardButton.Yes:
             self.batch_uninstall_requested.emit(selected_items)
