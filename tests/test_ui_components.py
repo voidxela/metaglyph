@@ -28,14 +28,6 @@ from metaglyph.ui.views.search_view import SearchView
 from metaglyph.ui.views.system_view import SystemView
 
 
-@pytest.fixture(scope="session", autouse=True)
-def qapp_session() -> QApplication:
-    """Ensure QApplication is created in offscreen mode for all GUI tests."""
-    os.environ["QT_QPA_PLATFORM"] = "offscreen"
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
-    return app
 
 
 # ============================================================================
@@ -358,7 +350,7 @@ def test_detail_pane_interactions(sample_font_jetbrains: Font) -> None:
     assert pane._title_label.text() == "JetBrains Mono"
     assert pane._provider_badge.text() == "Fontsource"
     assert pane._cat_badge.text() == "Code"
-    assert not pane._nf_banner.isHidden()
+    assert not pane.nerd_badge.isHidden()
 
     # Size slider
     pane._size_slider.setValue(32)
@@ -375,7 +367,7 @@ def test_detail_pane_interactions(sample_font_jetbrains: Font) -> None:
 
     # Install action
     installs: list[tuple[Font, str]] = []
-    pane.install_requested.connect(lambda f, s: installs.append((f, s)))
+    pane.install_requested.connect(lambda f, s, *args: installs.append((f, s)))
 
     pane._radio_user.setChecked(True)
     pane._install_btn.click()
@@ -462,9 +454,23 @@ async def test_main_window_navigation_and_signals(
     window.detail_pane.closed.emit()
     assert window.detail_pane.isHidden()
 
+    # Nerd Font counterpart switch in MainWindow
+    nf_font = Font(
+        id="jetbrainsmono-nerd-font",
+        family_name="JetBrainsMono Nerd Font",
+        category="monospace",
+        curated_category="Code",
+        primary_provider="nerd_fonts",
+        last_synced_at=1700000000,
+    )
+    await repository.upsert_fonts([nf_font])
+    await window._switch_nerd_font_async("jetbrainsmono-nerd-font", "Mono")
+    assert window.detail_pane._title_label.text() == "JetBrainsMono Nerd Font"
+    assert window.detail_pane.nerd_badge.get_selected_variant() == "Mono"
+
     # Stats refresh
     await window.refresh_stats_async()
-    assert "2 fonts indexed" in window._status_stats_label.text()
+    assert "3 fonts indexed" in window._status_stats_label.text()
     window.close()
 
 

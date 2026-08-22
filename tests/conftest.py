@@ -3,16 +3,28 @@
 from __future__ import annotations
 
 import io
+import os
 from pathlib import Path
 from typing import AsyncGenerator
 import pytest
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
+from PySide6.QtWidgets import QApplication
 
 from metaglyph.core.config import Config, set_config
 from metaglyph.db.database import DatabaseManager
 from metaglyph.db.models import Font, FontVariant, InstalledFont, SystemFontCacheEntry
 from metaglyph.db.repository import FontRepository
+
+
+@pytest.fixture(scope="session", autouse=True)
+def qapp_session() -> QApplication:
+    """Ensure QApplication is created in offscreen mode for all GUI tests."""
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+    return app
 
 
 def synthesize_test_font_bytes(
