@@ -531,13 +531,14 @@ class SystemView(QWidget):
                 res = await self.uninstaller.uninstall_installed_font(item)
                 self.font_uninstalled.emit(item.font_id, item.install_scope)
             elif isinstance(item, SystemFontCacheEntry):
+                norm_id = normalize_family_name(item.family_name)
                 res = await self.uninstaller.uninstall_font(
-                    font_id=item.family_name.lower().replace(" ", "-"),
+                    font_id=norm_id,
                     family_name=item.family_name,
                     file_paths=[Path(item.file_path)],
                     scope=item.scope,
                 )
-                self.font_uninstalled.emit(item.family_name, item.scope)
+                self.font_uninstalled.emit(norm_id, item.scope)
 
             await self.refresh_installed_async()
         except Exception as exc:

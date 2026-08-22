@@ -242,6 +242,7 @@ class MainWindow(QMainWindow):
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self.refresh_stats_async())
+            self.system_view.trigger_refresh()
         except RuntimeError:
             pass
 
@@ -251,6 +252,7 @@ class MainWindow(QMainWindow):
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self.refresh_stats_async())
+            self.system_view.trigger_refresh()
         except RuntimeError:
             pass
 
@@ -260,6 +262,7 @@ class MainWindow(QMainWindow):
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self.refresh_stats_async())
+            self.detail_pane._trigger_check_installed()
         except RuntimeError:
             pass
 
@@ -268,6 +271,7 @@ class MainWindow(QMainWindow):
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self.refresh_stats_async())
+            self.detail_pane._trigger_check_installed()
         except RuntimeError:
             pass
 
@@ -333,6 +337,8 @@ class MainWindow(QMainWindow):
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self.refresh_stats_async())
+            self.system_view.trigger_refresh()
+            self.detail_pane._trigger_check_installed()
         except RuntimeError:
             pass
 
@@ -340,5 +346,6 @@ class MainWindow(QMainWindow):
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self.refresh_stats_async())
+            self.system_view.trigger_refresh()
         except RuntimeError:
             pass

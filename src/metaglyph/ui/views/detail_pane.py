@@ -622,6 +622,11 @@ class DetailPane(QFrame):
             file_paths = []
             if self._installed_record:
                 file_paths = [Path(p) for p in self._installed_record.file_paths]
+            elif self.repository:
+                rec = await self.repository.get_installed_font(font.id)
+                if rec:
+                    self._installed_record = rec
+                    file_paths = [Path(p) for p in rec.file_paths]
 
             result = await self.uninstaller.uninstall_font(
                 font_id=font.id,
@@ -631,6 +636,7 @@ class DetailPane(QFrame):
             )
 
             if result.success:
+                self._installed_record = None
                 self._feedback_label.setObjectName("installFeedbackSuccess")
                 self._feedback_label.setStyleSheet(
                     "background-color: #064e3b; color: #a7f3d0; border: 1px solid #059669; border-radius: 6px; padding: 8px;"
@@ -675,3 +681,7 @@ class DetailPane(QFrame):
             self._install_btn.setEnabled(True)
             self._uninstall_btn.setEnabled(True)
             self._uninstall_btn.setText("Uninstall Font Family")
+            if not self._installed_record:
+                self._uninstall_btn.setVisible(False)
+                self._install_status_label.setVisible(False)
+                self._install_btn.setText("Install Font Family")
