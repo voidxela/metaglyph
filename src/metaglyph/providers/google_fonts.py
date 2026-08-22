@@ -21,8 +21,8 @@ from metaglyph.subsetting.subsetter import subset_font_bytes
 
 logger = logging.getLogger(__name__)
 
-# Legacy User-Agent that triggers Google Fonts CSS2 API to deliver Truetype (.ttf) format
-TTF_USER_AGENT = "Mozilla/5.0 (Windows NT 6.1; rv:2.0.1) Gecko/20100101 Firefox/4.0.1"
+# User-Agent that triggers Google Fonts CSS2 API to deliver Truetype (.ttf) format
+TTF_USER_AGENT = "Mozilla/5.0 (Linux; U; Android 2.2; en-us; Nexus One Build/FRF91) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1"
 
 
 class GoogleFontsProvider(BaseFontProvider):
@@ -191,57 +191,135 @@ class GoogleFontsProvider(BaseFontProvider):
         weight: int,
         style: str,
     ) -> Path:
-        """Fallback subsetting via downloading full font package and slicing with fontTools."""
+        """Fallback subsetting via downloading full font package or CSS2 and slicing with fontTools."""
         client = await self.get_client()
         zip_url = f"{self.download_base_url}?family={urllib.parse.quote(font.family_name)}"
-        res = await client.get(zip_url)
-        res.raise_for_status()
 
-        with zipfile.ZipFile(io.BytesIO(res.content)) as z:
-            font_files = [n for n in z.namelist() if n.lower().endswith((".ttf", ".otf"))]
-            if not font_files:
-                raise ValueError(f"No font files in Google Fonts archive for {font.family_name}")
+        raw_bytes: bytes | None = None
+        try:
+            res = await client.get(zip_url)
+            if res.status_code == 200 and res.content.startswith(b"PK\x03\x04"):
+                with zipfile.ZipFile(io.BytesIO(res.content)) as z:
+                    font_files = [n for n in z.namelist() if n.lower().endswith((".ttf", ".otf"))]
+                    if font_files:
+                        chosen = font_files[0]
+                        for name in font_files:
+                            name_lower = name.lower()
+                            if str(weight) in name_lower or (style == "italic" and "italic" in name_lower):
+                                chosen = name
+                                break
+                        raw_bytes = z.read(chosen)
+        except Exception:
+            pass
 
-            # Pick best matching font file
-            chosen = font_files[0]
-            for name in font_files:
-                name_lower = name.lower()
-                if str(weight) in name_lower or (style == "italic" and "italic" in name_lower):
-                    chosen = name
-                    break
+        if raw_bytes is None:
+            # Fetch complete variant via CSS2 without &text=
+            family_param = font.family_name.replace(" ", "+")
+            ital_val = 1 if style == "italic" else 0
+            css_url = f"{self.css2_base_url}?family={family_param}:ital,wght@{ital_val},{weight}&display=swap"
+            css_resp = await client.get(css_url, headers={"User-Agent": TTF_USER_AGENT})
+            css_resp.raise_for_status()
+            urls = re.findall(r"src:\s*url\((https?://[^)]+)\)", css_resp.text)
+            if not urls:
+                raise ValueError(f"Could not resolve font URL for {font.family_name}")
+            f_resp = await client.get(urls[0])
+            f_resp.raise_for_status()
+            raw_bytes = f_resp.content
 
-            raw_bytes = z.read(chosen)
-            subsetted = await asyncio.to_thread(subset_font_bytes, raw_bytes, sample_text)
-            return self.cache.save_subset(
-                font.id,
-                sample_text,
-                subsetted,
-                weight=weight,
-                style=style,
-            )
+        subsetted = await asyncio.to_thread(subset_font_bytes, raw_bytes, sample_text)
+        return self.cache.save_subset(
+            font.id,
+            sample_text,
+            subsetted,
+            weight=weight,
+            style=style,
+        )
 
     async def download_font_family(
         self,
         font: Font,
         target_dir: Path,
     ) -> list[Path]:
-        """Download complete Google Fonts family zip and extract TTF/OTF files."""
+        """Download complete Google Fonts family and extract TTF/OTF files."""
         target_dir.mkdir(parents=True, exist_ok=True)
         client = await self.get_client()
-        zip_url = f"{self.download_base_url}?family={urllib.parse.quote(font.family_name)}"
-
-        logger.info("Downloading Google Fonts archive for %s from %s", font.family_name, zip_url)
-        response = await client.get(zip_url)
-        response.raise_for_status()
-
         saved_files: list[Path] = []
-        with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-            for item in z.infolist():
-                filename = Path(item.filename).name
-                if filename.lower().endswith((".ttf", ".otf")) and not filename.startswith("."):
-                    target_file = target_dir / filename
-                    target_file.write_bytes(z.read(item.filename))
-                    saved_files.append(target_file)
+
+        # 1. Check if download_base_url returns a valid zip archive
+        zip_url = f"{self.download_base_url}?family={urllib.parse.quote(font.family_name)}"
+        try:
+            logger.info("Attempting Google Fonts archive download for %s from %s", font.family_name, zip_url)
+            response = await client.get(zip_url)
+            if response.status_code == 200 and response.content.startswith(b"PK\x03\x04"):
+                with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+                    for item in z.infolist():
+                        filename = Path(item.filename).name
+                        if filename.lower().endswith((".ttf", ".otf")) and not filename.startswith("."):
+                            target_file = target_dir / filename
+                            target_file.write_bytes(z.read(item.filename))
+                            saved_files.append(target_file)
+                if saved_files:
+                    logger.info("Extracted %d font files from archive for %s", len(saved_files), font.family_name)
+                    return saved_files
+        except Exception as exc:
+            logger.debug("Archive download not available or failed for %s: %s", font.family_name, exc)
+
+        # 2. Download TTF font files directly via Google Fonts CSS2 API
+        family_param = font.family_name.replace(" ", "+")
+        css_urls_to_try = [
+            f"{self.css2_base_url}?family={family_param}:ital,wght@0,100..900;1,100..900&display=swap",
+            f"{self.css2_base_url}?family={family_param}:ital,wght@0,400;0,700;1,400;1,700&display=swap",
+            f"{self.css2_base_url}?family={family_param}&display=swap",
+        ]
+
+        css_content: str | None = None
+        for css_url in css_urls_to_try:
+            try:
+                resp = await client.get(css_url, headers={"User-Agent": TTF_USER_AGENT})
+                if resp.status_code == 200 and "src:" in resp.text:
+                    css_content = resp.text
+                    break
+            except Exception:
+                continue
+
+        if not css_content:
+            raise ValueError(f"Could not retrieve CSS metadata for Google Font {font.family_name}")
+
+        # Parse @font-face blocks to extract all variant TTF URLs
+        blocks = css_content.split("@font-face")
+        variant_targets: list[tuple[int, str, str]] = []
+        seen_combos: set[tuple[int, str]] = set()
+
+        for block in blocks[1:]:
+            w_match = re.search(r"font-weight:\s*(\d+)", block)
+            s_match = re.search(r"font-style:\s*(\w+)", block)
+            u_match = re.search(r"src:\s*url\((https?://[^)]+)\)", block)
+            if u_match:
+                weight = int(w_match.group(1)) if w_match else 400
+                style = s_match.group(1) if s_match else "normal"
+                combo = (weight, style)
+                if combo not in seen_combos:
+                    seen_combos.add(combo)
+                    variant_targets.append((weight, style, u_match.group(1)))
+
+        semaphore = asyncio.Semaphore(6)
+        clean_name = font.family_name.replace(" ", "")
+
+        async def _download_variant(w: int, s: str, u: str) -> Path | None:
+            dest = target_dir / f"{clean_name}-{w}-{s}.ttf"
+            try:
+                async with semaphore:
+                    r = await client.get(u)
+                    r.raise_for_status()
+                    dest.write_bytes(r.content)
+                    return dest
+            except Exception as exc:
+                logger.warning("Failed to download variant %d %s from %s: %s", w, s, u, exc)
+                return None
+
+        tasks = [_download_variant(w, s, u) for w, s, u in variant_targets]
+        results = await asyncio.gather(*tasks)
+        saved_files = [p for p in results if p is not None]
 
         logger.info("Extracted %d font files for %s to %s", len(saved_files), font.family_name, target_dir)
         return saved_files

@@ -91,6 +91,30 @@ def matches_nerd_font_variant(filename: str, variant: str) -> bool:
     return True
 
 
+def resolve_nerd_font_download_url(font: Font, variant: FontVariant | None = None) -> str:
+    """Resolve direct GitHub release download URL for a Nerd Font family."""
+    if variant and variant.download_url:
+        return variant.download_url
+    if font.variants and font.variants[0].download_url:
+        return font.variants[0].download_url
+
+    # Check curated map
+    norm_id = normalize_family_name(font.family_name)
+    archive_stem: str | None = None
+    for stem, fam, _ in CURATED_NERD_FONTS:
+        if normalize_family_name(fam) == norm_id or normalize_family_name(fam) == font.id:
+            archive_stem = stem
+            break
+
+    if not archive_stem:
+        clean_name = font.family_name
+        for token in ("Nerd Font Mono", "Nerd Font Propo", "Nerd Font", "NFPropo", "NFM", "NF"):
+            clean_name = clean_name.replace(token, "")
+        archive_stem = clean_name.strip().replace(" ", "")
+
+    return f"https://github.com/ryanoasis/nerd-fonts/releases/latest/download/{archive_stem}.zip"
+
+
 class NerdFontsProvider(BaseFontProvider):
     """Provider integration for Nerd Fonts releases on GitHub."""
 
@@ -242,13 +266,7 @@ class NerdFontsProvider(BaseFontProvider):
             return cached_path
 
         client = await self.get_client()
-        dl_url = (
-            variant.download_url
-            if variant and variant.download_url
-            else font.variants[0].download_url
-            if font.variants
-            else f"https://github.com/ryanoasis/nerd-fonts/releases/latest/download/{font.id}.zip"
-        )
+        dl_url = resolve_nerd_font_download_url(font, variant)
 
         with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) as tmp:
             tmp_path = Path(tmp.name)
@@ -311,12 +329,7 @@ class NerdFontsProvider(BaseFontProvider):
         """
         target_dir.mkdir(parents=True, exist_ok=True)
         client = await self.get_client()
-
-        dl_url = (
-            font.variants[0].download_url
-            if font.variants
-            else f"https://github.com/ryanoasis/nerd-fonts/releases/latest/download/{font.id}.zip"
-        )
+        dl_url = resolve_nerd_font_download_url(font)
 
         logger.info("Downloading Nerd Font zip for %s from %s", font.family_name, dl_url)
 
