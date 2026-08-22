@@ -175,8 +175,35 @@ pub fn validate_destination_path(dest_path: &Path, target_dir: Option<&Path>) ->
         }
     }
 
+    if let Ok(meta) = dest_path.symlink_metadata() {
+        if meta.file_type().is_symlink() {
+            bail!("Destination path {:?} is a symlink", dest_path);
+        }
+    }
+
     if let Some(target) = target_dir {
-        if !dest_path.starts_with(target) {
+        let canonical_target = target
+            .canonicalize()
+            .unwrap_or_else(|_| target.to_path_buf());
+
+        let canonical_dest = if dest_path.exists() {
+            dest_path
+                .canonicalize()
+                .unwrap_or_else(|_| dest_path.to_path_buf())
+        } else if let Some(parent) = dest_path.parent() {
+            if parent.exists() {
+                parent
+                    .canonicalize()
+                    .map(|p| p.join(filename))
+                    .unwrap_or_else(|_| dest_path.to_path_buf())
+            } else {
+                dest_path.to_path_buf()
+            }
+        } else {
+            dest_path.to_path_buf()
+        };
+
+        if !canonical_dest.starts_with(&canonical_target) && !dest_path.starts_with(target) {
             bail!(
                 "Destination path {:?} is not confined to authorized target directory {:?}",
                 dest_path,

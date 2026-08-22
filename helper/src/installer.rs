@@ -50,9 +50,20 @@ pub fn atomic_install_file(source: &Path, destination: &Path) -> Result<()> {
 
     ensure_directory_secure(dest_dir)?;
 
+    // Reject if destination is a symlink
+    if let Ok(meta) = destination.symlink_metadata() {
+        if meta.file_type().is_symlink() {
+            anyhow::bail!("Destination path {:?} is a symlink", destination);
+        }
+    }
+
     let temp_name = format!(
-        ".metaglyph_tmp_{}_{}",
+        ".metaglyph_tmp_{}_{}_{}",
         std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0),
         destination
             .file_name()
             .and_then(|n| n.to_str())
@@ -60,13 +71,18 @@ pub fn atomic_install_file(source: &Path, destination: &Path) -> Result<()> {
     );
     let temp_path = dest_dir.join(temp_name);
 
+    if let Ok(meta) = temp_path.symlink_metadata() {
+        if meta.file_type().is_symlink() {
+            anyhow::bail!("Temporary file path {:?} is a pre-existing symlink", temp_path);
+        }
+    }
+
     // Read and copy bytes
     let mut src_file = File::open(source)
         .with_context(|| format!("Failed to open source file: {:?}", source))?;
     let mut tmp_file = OpenOptions::new()
         .write(true)
-        .create(true)
-        .truncate(true)
+        .create_new(true)
         .open(&temp_path)
         .with_context(|| format!("Failed to open temporary file: {:?}", temp_path))?;
 

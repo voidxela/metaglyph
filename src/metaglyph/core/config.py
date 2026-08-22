@@ -16,6 +16,7 @@ class Config(BaseModel):
     data_dir_override: Path | None = None
     config_dir_override: Path | None = None
     cache_dir_override: Path | None = None
+    platform_override: str | None = None
 
     default_sample_text: str = "The quick brown fox jumps over the lazy dog."
     default_font_size: float = 24.0
@@ -42,6 +43,8 @@ class Config(BaseModel):
     @property
     def platform_name(self) -> str:
         """Normalized OS platform name ('linux', 'darwin', 'windows')."""
+        if self.platform_override:
+            return self.platform_override
         if sys.platform.startswith("linux"):
             return "linux"
         if sys.platform == "darwin":

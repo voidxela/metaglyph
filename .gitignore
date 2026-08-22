@@ -39,3 +39,6 @@ helper/target/
 
 # Internal docs / plans
 docs/_*
+
+# Visual test reports
+visual_reports/

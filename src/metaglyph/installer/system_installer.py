@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -27,13 +29,15 @@ from metaglyph.installer.base import (
 logger = get_logger("installer.system")
 
 
-def find_helper_binary() -> Path | None:
+def find_helper_binary(allow_env_override: bool = False) -> Path | None:
     """Locate the compiled metaglyph-helper Rust binary on the filesystem."""
-    # 1. Environment variable override
-    if env_path := os.environ.get("METAGLYPH_HELPER_PATH"):
-        p = Path(env_path)
-        if p.is_file() and os.access(p, os.X_OK):
-            return p
+    # 1. Environment variable override (gated to explicit debug/dev mode)
+    if allow_env_override or os.environ.get("METAGLYPH_DEBUG") == "1" or os.environ.get("METAGLYPH_DEV_MODE") == "1":
+        if env_path := os.environ.get("METAGLYPH_HELPER_PATH"):
+            p = Path(env_path)
+            if p.is_file() and os.access(p, os.X_OK):
+                logger.info("Using development override for helper binary: %s", p)
+                return p
 
     binary_name = "metaglyph-helper.exe" if sys.platform in ("win32", "cygwin") else "metaglyph-helper"
 
@@ -111,20 +115,24 @@ class SystemFontInstaller(BaseInstaller):
             return ["pkexec", str(helper_path), "--manifest", str(manifest_path)]
 
         elif platform_name == "darwin":
-            # macOS AppleScript escalation
-            escaped_helper = str(helper_path).replace('"', '\\"')
-            escaped_manifest = str(manifest_path).replace('"', '\\"')
-            script = f'do shell script "{escaped_helper} --manifest \\"{escaped_manifest}\\"" with administrator privileges'
+            # macOS AppleScript escalation with shlex quoting against /bin/sh injection
+            inner_cmd = f"{shlex.quote(str(helper_path))} --manifest {shlex.quote(str(manifest_path))}"
+            as_escaped = inner_cmd.replace("\\", "\\\\").replace('"', '\\"')
+            script = f'do shell script "{as_escaped}" with administrator privileges'
             return ["osascript", "-e", script]
 
         elif platform_name == "windows":
-            # Windows PowerShell RunAs elevation
+            # Windows PowerShell RunAs elevation encoded in UTF-16LE Base64 to prevent injection
+            ps_helper = str(helper_path).replace("'", "''")
+            ps_manifest = str(manifest_path).replace("'", "''")
+            ps_script = f"Start-Process -FilePath '{ps_helper}' -ArgumentList '--manifest \"\"{ps_manifest}\"\"' -Verb RunAs -Wait"
+            encoded_cmd = base64.b64encode(ps_script.encode("utf-16le")).decode("ascii")
             return [
                 "powershell",
                 "-NoProfile",
                 "-NonInteractive",
-                "-Command",
-                f"Start-Process -FilePath '{helper_path}' -ArgumentList '--manifest \"{manifest_path}\"' -Verb RunAs -Wait",
+                "-EncodedCommand",
+                encoded_cmd,
             ]
 
         return [str(helper_path), "--manifest", str(manifest_path)]

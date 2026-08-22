@@ -417,10 +417,50 @@ def test_find_helper_binary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     fake_helper.chmod(0o755)
 
     monkeypatch.setenv("METAGLYPH_HELPER_PATH", str(fake_helper))
+    # Without debug/dev flag or explicit override, environment variable is ignored
+    monkeypatch.delenv("METAGLYPH_DEBUG", raising=False)
+    monkeypatch.delenv("METAGLYPH_DEV_MODE", raising=False)
+    assert find_helper_binary() is None
+
+    # When debug or explicit flag is enabled, it resolves
+    monkeypatch.setenv("METAGLYPH_DEBUG", "1")
     found = find_helper_binary()
     assert found == fake_helper
 
+    monkeypatch.delenv("METAGLYPH_DEBUG", raising=False)
+    assert find_helper_binary(allow_env_override=True) == fake_helper
     monkeypatch.delenv("METAGLYPH_HELPER_PATH", raising=False)
+
+
+def test_build_elevation_command_security(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify privilege escalation command formatting is safe against shell metacharacters."""
+    import base64
+    from metaglyph.core.config import Config
+
+    cfg_darwin = Config(platform_override="darwin")
+    installer_darwin = SystemFontInstaller(config=cfg_darwin)
+
+    malicious_helper = tmp_path / "helper'; rm -rf /; '"
+    malicious_manifest = tmp_path / 'manifest"; cat /etc/passwd; "'
+    cmd_darwin = installer_darwin._build_elevation_command(malicious_helper, malicious_manifest)
+
+    assert cmd_darwin[0] == "osascript"
+    assert cmd_darwin[1] == "-e"
+    # Ensure quotes are properly escaped in the AppleScript string
+    assert "do shell script" in cmd_darwin[2]
+    assert "with administrator privileges" in cmd_darwin[2]
+
+    cfg_win = Config(platform_override="windows")
+    installer_win = SystemFontInstaller(config=cfg_win)
+    cmd_win = installer_win._build_elevation_command(malicious_helper, malicious_manifest)
+
+    assert cmd_win[0] == "powershell"
+    assert "-EncodedCommand" in cmd_win
+    # Decode and verify the command payload is well-formed
+    idx = cmd_win.index("-EncodedCommand") + 1
+    decoded = base64.b64decode(cmd_win[idx]).decode("utf-16le")
+    assert "Start-Process" in decoded
+    assert "-Verb RunAs" in decoded
 
 
 @pytest.mark.asyncio
