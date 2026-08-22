@@ -2,76 +2,109 @@
 
 > Modern cross-platform desktop font browser and installer built with Python, PySide6, and Rust.
 
-## Overview
-
-Metaglyph unifies multiple font providers (Google Fonts, Fontsource, Nerd Fonts) into a single interface. Key capabilities include:
-
-- **Unified Font Catalog:** Seamless deduplication across providers with deterministic priority resolution.
-- **Native Async Micro-Subsetting:** Zero-lag live font previews rendered with native Qt widgets via dynamic subset font loading (`QFontDatabase`).
-- **Privilege-Isolated Installation:** User-space fonts are installed directly without privileges; system-wide font installations are safely performed via a dedicated standalone Rust helper binary (`metaglyph-helper`).
-- **Nerd Font Intelligence:** Proactive counterpart suggestions with variant switching (Standard, Mono, Propo).
-- **System Font Management:** Local font registry scanning, tracking of Metaglyph-managed fonts, and batch uninstallation.
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![GUI: PySide6](https://img.shields.io/badge/GUI-PySide6%20%28Qt%206%29-green.svg)](https://wiki.qt.io/Qt_for_Python)
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
 
 ---
 
-## Architecture
+## 1. Overview
+
+**Metaglyph** unifies multiple online font providers (Google Fonts, Fontsource, Nerd Fonts) into a single, unified, high-performance desktop application. Key capabilities include:
+
+- **Unified Font Catalog:** Multi-source deduplication across providers with deterministic priority resolution and automatic metadata merging.
+- **Native Async Micro-Subsetting:** Zero-lag live font previews rendered with native Qt widgets (`QLabel`) via dynamic TrueType micro-subset extraction and runtime `QFontDatabase` loading.
+- **Strict Privilege Isolation:** User-space fonts are installed directly without privileges; system-wide font installations are safely executed via a dedicated standalone Rust helper binary (`metaglyph-helper`) communicating via IPC JSON manifests.
+- **Nerd Font Intelligence:** Proactive counterpart suggestions with one-click transitions and variant selection (`Standard`, `Mono`, `Propo`).
+- **System Font Management:** Real-time OS font directory scanning, tracking of Metaglyph-managed fonts, and single-pass multi-scope batch uninstallation.
+
+---
+
+## 2. Architecture & Tech Stack
+
+```
++----------------------------------------------------------------------------+
+|                             Metaglyph (PySide6)                            |
+|  +----------------------------------------------------------------------+  |
+|  | Discover Page  |  Search & Browse Page  |  System Registry View      |  |
+|  +----------------------------------------------------------------------+  |
+|  | Live Font Preview & Tuning Drawer (Size, Weight, Preset Pangrams)    |  |
+|  +----------------------------------------------------------------------+  |
+|                                     |                                      |
+|    +--------------------------------+-------------------------------+      |
+|    |                                |                               |      |
+|    v                                v                               v      |
+| [Subset Pipeline]           [SQLite Repository]           [Installer Core] |
+| (fonttools + QFontDatabase) (Deduplicated Catalog)       (User / System)  |
++-------------------------------------------------------------------|--------+
+                                                                    |
+                                        [IPC JSON Manifest]         v
+                                   +-----------------------------------------+
+                                   |  metaglyph-helper (Standalone Rust)     |
+                                   |  (Elevated: pkexec / Windows RunAs)     |
+                                   +-----------------------------------------+
+```
 
 - **GUI Framework:** PySide6 (Qt for Python) with native async QSS dark theme
 - **Async Concurrency:** Python `asyncio` integrated with Qt's event loop via `qasync`
-- **Local Database:** SQLite via `aiosqlite`
+- **Local Database:** SQLite via `aiosqlite` with WAL mode and foreign key constraints
 - **Font Subsetting & Loader:** `fonttools` + `QFontDatabase` dynamic application font loading
 - **System Helper:** Rust binary communicating via IPC JSON manifests (`pkexec` / `runas`)
 - **Runtime:** Python 3.11+
 
 ---
 
-## Installation & Running from Source
+## 3. Installation & Developer Setup
 
-### 1. Prerequisites
+### Prerequisites
 
 - Python 3.11 or higher
-- Rust toolchain (`cargo` / `rustc`) for building the optional privilege helper
+- Optional: Rust toolchain (`cargo` / `rustc`) for building the privilege escalation helper
 
-### 2. Environment Setup
+### Environment Setup
 
 ```bash
-# Clone repository
+# 1. Clone repository
 git clone https://github.com/voidxela/metaglyph.git
 cd metaglyph
 
-# Create and activate virtual environment
+# 2. Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install dependencies and Metaglyph in editable mode
+# 3. Install dependencies and Metaglyph in editable mode
 pip install -e ".[dev]"
 ```
 
-### 3. Launching the Application
+---
 
-Run the desktop application directly using Python or the installed CLI entry point:
+## 4. Running Metaglyph
+
+### A. Launch the Desktop Application
+
+Run the PySide6 desktop GUI directly:
 
 ```bash
-# Launch the PySide6 Desktop GUI
+# Using python module
 python -m metaglyph
 
 # Or using the console script
 metaglyph
 ```
 
-### 4. Headless Catalog Synchronization (Optional CLI)
+### B. Headless Catalog Synchronization (CLI)
 
-You can synchronize font metadata catalogs from Google Fonts, Fontsource, and Nerd Fonts without launching the UI:
+Synchronize font catalogs across Google Fonts, Fontsource, and Nerd Fonts without launching the GUI:
 
 ```bash
 python -m metaglyph --sync
 ```
 
-*(Note: You can also sync catalogs directly inside the GUI using the **Sync Catalog** button on the sidebar or discover dashboard).*
+*(Note: Catalogs can also be synchronized directly in the GUI using the **Sync Catalog** button on the sidebar).*
 
-### 5. Building the Rust Helper Binary (Optional)
+### C. Building the Rust Helper Binary (Optional)
 
-To enable system-wide font installations (in `/usr/local/share/fonts` or `C:\Windows\Fonts`), build the standalone Rust helper binary:
+To enable system-wide font installations (e.g., in `/usr/local/share/fonts` on Linux or `C:\Windows\Fonts` on Windows), compile the standalone Rust helper binary:
 
 ```bash
 cd helper
@@ -81,27 +114,52 @@ cd ..
 
 ---
 
-## UI Overview
+## 5. User Interface Overview
 
 | View | Description |
 | :--- | :--- |
 | **✦ Discover** | Curated category dashboard for Interface, Code, Header, Prose, Display, and Handwriting typography with featured font spotlight cards. |
 | **🔍 Search & Browse** | High-performance search with 200ms debounce, category/provider filter chips, variable & Nerd font toggles, and live micro-subset font previews. |
 | **Inspector Drawer** | Real-time font tuner with live point size slider (10pt–72pt), weight selector (100–900), custom editable sample text, Nerd Font counterpart banner, and User/System scope installation. |
-| **💻 System Registry** | OS font directory scanner tracking locally installed fonts and Metaglyph-managed installations. |
+| **💻 System Registry** | OS font directory scanner tracking locally installed fonts and Metaglyph-managed installations with batch uninstallation. |
 
 ---
 
-## Running Tests
+## 6. Directory Layout & Data Storage
 
-Run the complete test suite across normalization, database repository, providers, micro-subsetting, installer, and UI components:
+Metaglyph follows standard OS directory conventions:
+
+| Platform | Configuration Directory | Local Data & Database | Micro-Subset Cache |
+| :--- | :--- | :--- | :--- |
+| **Linux** | `~/.config/metaglyph/` | `~/.local/share/metaglyph/` | `~/.cache/metaglyph/subsets/` |
+| **macOS** | `~/Library/Application Support/metaglyph/` | `~/Library/Application Support/metaglyph/` | `~/Library/Caches/metaglyph/subsets/` |
+| **Windows** | `%APPDATA%\metaglyph\` | `%LOCALAPPDATA%\metaglyph\` | `%LOCALAPPDATA%\metaglyph\cache\subsets\` |
+
+---
+
+## 7. Running the Test Suite
+
+Metaglyph includes a comprehensive test suite covering all modules:
 
 ```bash
+# Run all tests
 pytest
+
+# Run concurrency stress tests
+pytest tests/test_concurrency_stress.py -v
+
+# Run memory leak & lifecycle verification
+pytest tests/test_memory_leak.py -v
+
+# Run resilience & error recovery tests
+pytest tests/test_resilience_edge_cases.py -v
+
+# Run end-to-end user workflow tests
+pytest tests/test_e2e_integration.py -v
 ```
 
 ---
 
-## License
+## 8. License
 
-This is free and unencumbered software released into the public domain (Unlicense).
+This is free and unencumbered software released into the public domain (Unlicense). See [LICENSE](LICENSE) for details.
