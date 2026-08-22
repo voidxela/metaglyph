@@ -198,7 +198,9 @@ def test_font_card_rendering_and_click(sample_font_jetbrains: Font) -> None:
     card = FontCard(font=sample_font_jetbrains, sample_text="Quick brown fox")
 
     assert card._name_label.text() == "JetBrains Mono"
-    assert "Code" in card._cat_badge.text()
+    cat_texts = [b.text() for b in card._cat_badges]
+    assert "Code" in cat_texts
+    assert "Monospace" in cat_texts
     assert card._provider_badge.text() == "Fontsource"
     assert "2 Styles" in card._styles_badge.text()
     assert hasattr(card, "_nerd_badge")
@@ -278,7 +280,7 @@ async def test_discover_view_category_clicks_and_counts(
     await repository.upsert_fonts([sample_font_jetbrains, sample_font_inter])
 
     discover = DiscoverView(repository=repository)
-    assert len(discover._category_cards) == 6
+    assert len(discover._category_cards) == 9
 
     # Category click
     selected_cats: list[str] = []
@@ -349,7 +351,9 @@ def test_detail_pane_interactions(sample_font_jetbrains: Font) -> None:
 
     assert pane._title_label.text() == "JetBrains Mono"
     assert pane._provider_badge.text() == "Fontsource"
-    assert "Code" in pane._cat_badge.text()
+    cat_texts = [b.text() for b in pane._cat_badges]
+    assert "Code" in cat_texts
+    assert "Monospace" in cat_texts
     assert not pane.nerd_badge.isHidden()
 
     # Size slider

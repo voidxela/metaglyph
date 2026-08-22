@@ -67,6 +67,27 @@ CURATED_CATEGORY_METADATA = [
         "description": "Organic, brush, and cursive handwritten scripts for personal, casual, or signature styles.",
         "examples": ["Caveat", "Pacifico", "Dancing Script"],
     },
+    {
+        "category": "Sans-Serif",
+        "icon": "Aa",
+        "title": "Sans-Serif",
+        "description": "Modernist typefaces without serifs, engineered for clarity and visual consistency across all screen resolutions.",
+        "examples": ["Inter", "Roboto", "Open Sans"],
+    },
+    {
+        "category": "Serif",
+        "icon": "Tt",
+        "title": "Serif",
+        "description": "Classic typefaces with decorative serifs, designed for elegant literary publishing and comfortable editorial reading.",
+        "examples": ["Merriweather", "Lora", "PT Serif"],
+    },
+    {
+        "category": "Monospace",
+        "icon": "⌨",
+        "title": "Monospace",
+        "description": "Fixed-width character grid typefaces designed for code editors, developer terminals, and technical data.",
+        "examples": ["JetBrains Mono", "Space Mono", "Fira Code"],
+    },
 ]
 
 
@@ -242,7 +263,7 @@ class DiscoverView(QWidget):
         content_layout.addWidget(spotlight)
 
         # Section Header
-        section_label = QLabel("Curated Categories", container)
+        section_label = QLabel("Browse Categories", container)
         section_label.setStyleSheet("font-size: 15px; font-weight: 700; color: #f8fafc;")
         content_layout.addWidget(section_label)
 

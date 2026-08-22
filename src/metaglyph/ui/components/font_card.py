@@ -69,7 +69,7 @@ class FontCard(QFrame):
         self._provider_badge.setObjectName("fontProviderBadge")
         header_layout.addWidget(self._provider_badge)
 
-        # Category Badge (support multiple categories)
+        # Category Badges (as separate chips)
         cats = []
         raw_cat = (self.font.category or "").strip()
         raw_display = "Sans-Serif" if raw_cat.lower() in ("sans-serif", "sans_serif", "sansserif") else raw_cat.title()
@@ -80,10 +80,16 @@ class FontCard(QFrame):
         if curated and curated.lower() != raw_display.lower() and curated not in cats:
             cats.append(curated)
 
-        cat_name = " • ".join(cats) if cats else "Sans-Serif"
-        self._cat_badge = QLabel(cat_name, header_widget)
-        self._cat_badge.setObjectName("fontCategoryBadge")
-        header_layout.addWidget(self._cat_badge)
+        if not cats:
+            cats = ["Sans-Serif"]
+
+        self._cat_badges: list[QLabel] = []
+        for cat in cats:
+            badge = QLabel(cat, header_widget)
+            badge.setObjectName("fontCategoryBadge")
+            header_layout.addWidget(badge)
+            self._cat_badges.append(badge)
+        self._cat_badge = self._cat_badges[0]
 
         # Styles Count
         styles_count = len(self.font.variants) if self.font.variants else 1

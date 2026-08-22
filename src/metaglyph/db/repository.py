@@ -437,13 +437,36 @@ class FontRepository:
             return fonts, total_count
 
     async def get_curated_category_counts(self) -> dict[str, int]:
-        """Return font count by curated category."""
+        """Return font count by category and curated category."""
+        counts: dict[str, int] = {}
         async with self._db.connection() as conn:
             cursor = await conn.execute(
-                "SELECT curated_category, COUNT(*) AS cnt FROM fonts GROUP BY curated_category"
+                "SELECT curated_category, COUNT(*) AS cnt FROM fonts WHERE curated_category IS NOT NULL GROUP BY curated_category"
             )
             rows = await cursor.fetchall()
-            return {row["curated_category"]: row["cnt"] for row in rows if row["curated_category"]}
+            for row in rows:
+                if row["curated_category"]:
+                    counts[row["curated_category"]] = row["cnt"]
+
+            cursor = await conn.execute(
+                "SELECT category, COUNT(*) AS cnt FROM fonts WHERE category IS NOT NULL GROUP BY category"
+            )
+            rows = await cursor.fetchall()
+            for row in rows:
+                if row["category"]:
+                    raw_c = row["category"]
+                    counts[raw_c] = row["cnt"]
+                    cat_map = {
+                        "sans-serif": "Sans-Serif",
+                        "serif": "Serif",
+                        "monospace": "Monospace",
+                        "display": "Display",
+                        "handwriting": "Handwriting",
+                    }
+                    nice_name = cat_map.get(raw_c.lower())
+                    if nice_name and nice_name not in counts:
+                        counts[nice_name] = row["cnt"]
+        return counts
 
     async def record_installation(self, installed: InstalledFont) -> int:
         """Insert or replace an installed font record."""

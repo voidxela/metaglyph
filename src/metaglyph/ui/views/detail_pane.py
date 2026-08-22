@@ -146,23 +146,24 @@ class DetailPane(QFrame):
 
         # Badges row
         self._badges_widget = QWidget(container)
-        badges_layout = QHBoxLayout(self._badges_widget)
-        badges_layout.setContentsMargins(0, 0, 0, 0)
-        badges_layout.setSpacing(6)
+        self._badges_layout = QHBoxLayout(self._badges_widget)
+        self._badges_layout.setContentsMargins(0, 0, 0, 0)
+        self._badges_layout.setSpacing(6)
 
         self._provider_badge = QLabel("Provider", self._badges_widget)
         self._provider_badge.setObjectName("fontProviderBadge")
-        badges_layout.addWidget(self._provider_badge)
+        self._badges_layout.addWidget(self._provider_badge)
 
         self._cat_badge = QLabel("Category", self._badges_widget)
         self._cat_badge.setObjectName("fontCategoryBadge")
-        badges_layout.addWidget(self._cat_badge)
+        self._badges_layout.addWidget(self._cat_badge)
+        self._cat_badges = [self._cat_badge]
 
         self._styles_badge = QLabel("Styles", self._badges_widget)
         self._styles_badge.setObjectName("fontStylesBadge")
-        badges_layout.addWidget(self._styles_badge)
+        self._badges_layout.addWidget(self._styles_badge)
 
-        badges_layout.addStretch(1)
+        self._badges_layout.addStretch(1)
         main_layout.addWidget(self._badges_widget)
 
         # 2. Nerd Font Counterpart Banner (Dedicated NerdFontBadge component)
@@ -329,6 +330,13 @@ class DetailPane(QFrame):
         self._subtitle_label.setText(f"Provided via {prov}")
         self._provider_badge.setText(prov)
 
+        # Category Badges (as separate chips)
+        for b in self._cat_badges:
+            self._badges_layout.removeWidget(b)
+            b.hide()
+            b.deleteLater()
+        self._cat_badges.clear()
+
         cats = []
         raw_cat = (font.category or "").strip()
         raw_display = "Sans-Serif" if raw_cat.lower() in ("sans-serif", "sans_serif", "sansserif") else raw_cat.title()
@@ -339,8 +347,17 @@ class DetailPane(QFrame):
         if curated and curated.lower() != raw_display.lower() and curated not in cats:
             cats.append(curated)
 
-        cat_display = " • ".join(cats) if cats else "Sans-Serif"
-        self._cat_badge.setText(cat_display)
+        if not cats:
+            cats = ["Sans-Serif"]
+
+        insert_pos = 1
+        for cat in cats:
+            b = QLabel(cat, self._badges_widget)
+            b.setObjectName("fontCategoryBadge")
+            self._badges_layout.insertWidget(insert_pos, b)
+            self._cat_badges.append(b)
+            insert_pos += 1
+        self._cat_badge = self._cat_badges[0]
 
         styles_count = len(font.variants) if font.variants else 1
         self._styles_badge.setText(f"{styles_count} {'Style' if styles_count == 1 else 'Styles'}")
