@@ -459,6 +459,8 @@ class SystemView(QWidget):
             # Clear existing cards
             for card in self._card_widgets:
                 self._list_layout.removeWidget(card)
+                card.hide()
+                card.setParent(None)
                 card.deleteLater()
             self._card_widgets.clear()
 

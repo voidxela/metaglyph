@@ -257,6 +257,8 @@ class SearchView(QWidget):
                 widget = item.widget()
                 if widget not in (self._empty_widget, self._load_more_btn):
                     self._cards_layout.removeWidget(widget)
+                    widget.hide()
+                    widget.setParent(None)
                     widget.deleteLater()
 
     def _render_font_cards(self, fonts: list[Font]) -> None:
