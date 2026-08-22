@@ -1,4 +1,4 @@
-"""Search & Browse view with debounced search, filter chips, and live font preview cards."""
+"""Search view with debounced search, filter chips, and live font preview cards."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -83,7 +82,7 @@ class SearchView(QWidget):
 
         main_layout.addWidget(controls_container)
 
-        # Results Info & Preview Text Tuning Bar
+        # Results Info Bar
         info_bar = QWidget(self)
         info_layout = QHBoxLayout(info_bar)
         info_layout.setContentsMargins(2, 4, 2, 4)
@@ -92,21 +91,7 @@ class SearchView(QWidget):
         self._results_count_label = QLabel("Searching catalog...", info_bar)
         self._results_count_label.setStyleSheet("color: #94a3b8; font-size: 12px; font-weight: 500;")
         info_layout.addWidget(self._results_count_label)
-
         info_layout.addStretch(1)
-
-        # Sample text customizer for live card previews
-        sample_label = QLabel("Preview Text:", info_bar)
-        sample_label.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 600;")
-        info_layout.addWidget(sample_label)
-
-        self._sample_input = QLineEdit(self._sample_text, info_bar)
-        self._sample_input.setPlaceholderText("Enter custom sample text...")
-        self._sample_input.setStyleSheet(
-            "background-color: #161922; border: 1px solid #282e3f; border-radius: 6px; padding: 4px 8px; color: #f1f5f9; font-size: 12px; min-width: 160px; max-width: 320px;"
-        )
-        self._sample_input.textChanged.connect(self._on_sample_text_changed)
-        info_layout.addWidget(self._sample_input)
 
         main_layout.addWidget(info_bar)
 
@@ -255,6 +240,7 @@ class SearchView(QWidget):
 
     def _clear_cards(self) -> None:
         """Remove all existing font card widgets from layout."""
+        self._selected_card = None
         # Keep empty_widget and load_more_btn, remove other widgets
         for i in reversed(range(self._cards_layout.count())):
             item = self._cards_layout.itemAt(i)
@@ -267,6 +253,15 @@ class SearchView(QWidget):
                     widget.hide()
                     widget.setParent(None)
                     widget.deleteLater()
+
+    def clear_selection(self) -> None:
+        """Clear active card selection visual state safely."""
+        if self._selected_card is not None:
+            try:
+                self._selected_card.set_selected(False)
+            except (RuntimeError, Exception):
+                pass
+            self._selected_card = None
 
     def _render_font_cards(self, fonts: list[Font]) -> None:
         """Create and add FontCard widgets to layout."""
@@ -284,12 +279,18 @@ class SearchView(QWidget):
             insert_idx += 1
 
     def _on_card_clicked(self, font: Font) -> None:
-        # Update selection state
+        # Update selection state safely
         sender = self.sender()
         if isinstance(sender, FontCard):
             if self._selected_card and self._selected_card != sender:
-                self._selected_card.set_selected(False)
+                try:
+                    self._selected_card.set_selected(False)
+                except (RuntimeError, Exception):
+                    pass
             self._selected_card = sender
-            sender.set_selected(True)
+            try:
+                sender.set_selected(True)
+            except (RuntimeError, Exception):
+                pass
 
         self.font_selected.emit(font)

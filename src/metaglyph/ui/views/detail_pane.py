@@ -281,13 +281,13 @@ class DetailPane(QFrame):
         main_layout.addWidget(scope_header)
 
         scope_group = QButtonGroup(container)
-        self._radio_user = QRadioButton("User (~/.local/share/fonts) - No Sudo", container)
+        self._radio_user = QRadioButton("User (~/.local/share/fonts)", container)
         self._radio_user.setChecked(True)
         self._radio_user.setCursor(Qt.CursorShape.PointingHandCursor)
         scope_group.addButton(self._radio_user)
         main_layout.addWidget(self._radio_user)
 
-        self._radio_system = QRadioButton("System (/usr/local/share/fonts) - Helper", container)
+        self._radio_system = QRadioButton("System (/usr/local/share/fonts)", container)
         self._radio_system.setCursor(Qt.CursorShape.PointingHandCursor)
         scope_group.addButton(self._radio_system)
         main_layout.addWidget(self._radio_system)
