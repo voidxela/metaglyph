@@ -1,12 +1,16 @@
-"""Detail pane font inspector, size/weight tuner, and installation controller."""
+"""Detail pane font inspector, size/weight tuner, Nerd Font switcher, and installation controller."""
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import tempfile
+from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QCheckBox,
     QComboBox,
     QFrame,
     QHBoxLayout,
@@ -14,16 +18,23 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QRadioButton,
+    QScrollArea,
     QSlider,
     QVBoxLayout,
     QWidget,
 )
 
 from metaglyph.core.config import get_config
-from metaglyph.db.models import Font
-from metaglyph.installer.base import InstallScope
+from metaglyph.db.models import Font, FontVariant, InstalledFont
+from metaglyph.db.repository import FontRepository
+from metaglyph.installer.base import InstallResult, InstallScope
+from metaglyph.installer.system_installer import SystemFontInstaller
+from metaglyph.installer.uninstaller import FontUninstaller
+from metaglyph.installer.user_installer import UserFontInstaller
+from metaglyph.providers.manager import ProviderManager
 from metaglyph.subsetting.fetcher import SubsetFetcher
 from metaglyph.ui.components.font_preview import FontPreviewWidget
+from metaglyph.ui.components.nerd_badge import NerdFontBadge
 
 logger = logging.getLogger(__name__)
 
@@ -39,41 +50,80 @@ WEIGHT_MAP: dict[str, int] = {
     "Black (900)": 900,
 }
 
+SAMPLE_PRESETS: dict[str, str] = {
+    "Quick Brown Fox": "The quick brown fox jumps over the lazy dog.",
+    "Alphabet": "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz",
+    "Numerals & Symbols": "0123456789 !@#$%^&*()_+=-`~[]\\{}|;':\",./<>?",
+    "Programming Ligatures": "const fn = (x) => x !== null ? x : 0; // === >= <= -> != <!--",
+    "Pangram (Sphinx)": "Sphinx of black quartz, judge my vow.",
+}
+
 
 class DetailPane(QFrame):
     """Sliding or docked side inspector for fine-tuning font preview, variant selection, and installation."""
 
-    install_requested = Signal(object, str)  # (Font, "User" | "System")
+    install_requested = Signal(object, str, str)  # (Font, "User" | "System", variant_filter)
+    uninstall_requested = Signal(object, str)     # (Font, "User" | "System")
+    nerd_switch_requested = Signal(str, str)      # (target_slug, variant)
     closed = Signal()
+    install_completed = Signal(object)            # InstallResult
+    uninstall_completed = Signal(object)          # InstallResult
 
     def __init__(
         self,
+        repository: FontRepository | None = None,
+        provider_manager: ProviderManager | None = None,
+        user_installer: UserFontInstaller | None = None,
+        system_installer: SystemFontInstaller | None = None,
+        uninstaller: FontUninstaller | None = None,
         subset_fetcher: SubsetFetcher | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("detailPane")
+        self.repository = repository
+        self.provider_manager = provider_manager or ProviderManager()
+        self.user_installer = user_installer or UserFontInstaller(repository=repository)
+        self.system_installer = system_installer or SystemFontInstaller(repository=repository)
+        self.uninstaller = uninstaller or FontUninstaller(
+            repository=repository,
+            user_installer=self.user_installer,
+            system_installer=self.system_installer,
+        )
         self.subset_fetcher = subset_fetcher
+
         self._font: Font | None = None
+        self._installed_record: InstalledFont | None = None
+        self._is_busy: bool = False
 
         self._init_ui()
 
     def _init_ui(self) -> None:
-        main_layout = QVBoxLayout(self)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        # Scroll area to comfortably handle smaller display heights
+        scroll_area = QScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+
+        container = QWidget(scroll_area)
+        main_layout = QVBoxLayout(container)
         main_layout.setContentsMargins(16, 16, 16, 16)
         main_layout.setSpacing(12)
 
-        # Header Row: Title & Close Button
+        # 1. Header Row: Title & Close Button
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 0)
 
-        self._title_label = QLabel("Font Inspector", self)
+        self._title_label = QLabel("Font Inspector", container)
         self._title_label.setObjectName("detailPaneTitle")
         header_layout.addWidget(self._title_label)
 
         header_layout.addStretch(1)
 
-        self._close_btn = QPushButton("✕", self)
+        self._close_btn = QPushButton("✕", container)
         self._close_btn.setStyleSheet(
             "background-color: transparent; color: #64748b; font-size: 14px; font-weight: bold; border: none; padding: 2px 6px;"
         )
@@ -84,12 +134,12 @@ class DetailPane(QFrame):
         main_layout.addLayout(header_layout)
 
         # Subtitle & Badges
-        self._subtitle_label = QLabel("Select a font to view details", self)
+        self._subtitle_label = QLabel("Select a font to view details", container)
         self._subtitle_label.setObjectName("detailPaneSubtitle")
         main_layout.addWidget(self._subtitle_label)
 
         # Badges row
-        self._badges_widget = QWidget(self)
+        self._badges_widget = QWidget(container)
         badges_layout = QHBoxLayout(self._badges_widget)
         badges_layout.setContentsMargins(0, 0, 0, 0)
         badges_layout.setSpacing(6)
@@ -109,77 +159,93 @@ class DetailPane(QFrame):
         badges_layout.addStretch(1)
         main_layout.addWidget(self._badges_widget)
 
-        # Nerd Font Counterpart Banner (if applicable)
-        self._nf_banner = QFrame(self)
-        self._nf_banner.setStyleSheet(
-            "background-color: #241442; border: 1px solid #4c1d95; border-radius: 8px; padding: 10px;"
-        )
-        nf_layout = QVBoxLayout(self._nf_banner)
-        nf_layout.setContentsMargins(8, 8, 8, 8)
-        nf_layout.setSpacing(4)
-
-        nf_title = QLabel("󰊤 Nerd Font Counterpart Available", self._nf_banner)
-        nf_title.setStyleSheet("color: #c084fc; font-weight: 700; font-size: 12px;")
-        nf_layout.addWidget(nf_title)
-
-        self._nf_desc = QLabel("Includes developer icons, glyphs, and ligatures.", self._nf_banner)
-        self._nf_desc.setStyleSheet("color: #94a3b8; font-size: 11px;")
-        self._nf_desc.setWordWrap(True)
-        nf_layout.addWidget(self._nf_desc)
-
-        main_layout.addWidget(self._nf_banner)
-        self._nf_banner.setVisible(False)
+        # 2. Nerd Font Counterpart Banner (Dedicated NerdFontBadge component)
+        self.nerd_badge = NerdFontBadge(container)
+        self.nerd_badge.switch_requested.connect(self._on_nerd_switch_requested)
+        main_layout.addWidget(self.nerd_badge)
+        self.nerd_badge.setVisible(False)
 
         # Separator line
-        sep1 = QFrame(self)
+        sep1 = QFrame(container)
         sep1.setFrameShape(QFrame.Shape.HLine)
         sep1.setStyleSheet("color: #262632;")
         main_layout.addWidget(sep1)
 
-        # Size Slider Section
+        # 3. Size Slider Section
         size_header_layout = QHBoxLayout()
-        size_label = QLabel("Point Size", self)
+        size_label = QLabel("Point Size", container)
         size_label.setObjectName("detailSectionHeader")
         size_header_layout.addWidget(size_label)
         size_header_layout.addStretch(1)
 
-        self._size_val_label = QLabel("24 pt", self)
+        self._size_val_label = QLabel("24 pt", container)
         self._size_val_label.setStyleSheet("color: #818cf8; font-weight: 600; font-size: 11px;")
         size_header_layout.addWidget(self._size_val_label)
         main_layout.addLayout(size_header_layout)
 
-        self._size_slider = QSlider(Qt.Orientation.Horizontal, self)
+        self._size_slider = QSlider(Qt.Orientation.Horizontal, container)
         self._size_slider.setRange(10, 72)
         self._size_slider.setValue(24)
         self._size_slider.valueChanged.connect(self._on_size_changed)
         main_layout.addWidget(self._size_slider)
 
-        # Weight Selector Section
-        weight_label = QLabel("Weight", self)
-        weight_label.setObjectName("detailSectionHeader")
-        main_layout.addWidget(weight_label)
+        # 4. Weight & Style Controls
+        style_controls_layout = QHBoxLayout()
+        style_controls_layout.setSpacing(8)
 
-        self._weight_combo = QComboBox(self)
+        # Weight Selector
+        weight_box = QVBoxLayout()
+        weight_label = QLabel("Weight", container)
+        weight_label.setObjectName("detailSectionHeader")
+        weight_box.addWidget(weight_label)
+
+        self._weight_combo = QComboBox(container)
         for label in WEIGHT_MAP.keys():
             self._weight_combo.addItem(label)
         self._weight_combo.setCurrentText("Regular (400)")
         self._weight_combo.currentTextChanged.connect(self._on_weight_changed)
-        main_layout.addWidget(self._weight_combo)
+        weight_box.addWidget(self._weight_combo)
+        style_controls_layout.addLayout(weight_box, stretch=2)
 
-        # Interactive Sample Text Editor
-        sample_header = QLabel("Sample Text", self)
+        # Italic Checkbox
+        italic_box = QVBoxLayout()
+        italic_label = QLabel("Style", container)
+        italic_label.setObjectName("detailSectionHeader")
+        italic_box.addWidget(italic_label)
+
+        self._italic_check = QCheckBox("Italic", container)
+        self._italic_check.setProperty("class", "filter-toggle")
+        self._italic_check.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._italic_check.toggled.connect(self._on_italic_toggled)
+        italic_box.addWidget(self._italic_check)
+        style_controls_layout.addLayout(italic_box, stretch=1)
+
+        main_layout.addLayout(style_controls_layout)
+
+        # 5. Interactive Sample Text & Presets
+        sample_header_layout = QHBoxLayout()
+        sample_header = QLabel("Sample Text", container)
         sample_header.setObjectName("detailSectionHeader")
-        main_layout.addWidget(sample_header)
+        sample_header_layout.addWidget(sample_header)
+        sample_header_layout.addStretch(1)
 
-        self._sample_editor = QPlainTextEdit(self)
+        self._preset_combo = QComboBox(container)
+        self._preset_combo.addItem("Presets...")
+        for name in SAMPLE_PRESETS.keys():
+            self._preset_combo.addItem(name)
+        self._preset_combo.currentTextChanged.connect(self._on_preset_selected)
+        sample_header_layout.addWidget(self._preset_combo)
+        main_layout.addLayout(sample_header_layout)
+
+        self._sample_editor = QPlainTextEdit(container)
         self._sample_editor.setObjectName("detailSampleEditor")
-        self._sample_editor.setMaximumHeight(80)
+        self._sample_editor.setMaximumHeight(70)
         self._sample_editor.setPlainText(get_config().default_sample_text)
         self._sample_editor.textChanged.connect(self._on_sample_text_changed)
         main_layout.addWidget(self._sample_editor)
 
-        # Live Preview Box
-        preview_header = QLabel("Live Rendering", self)
+        # 6. Live Preview Box
+        preview_header = QLabel("Live Rendering", container)
         preview_header.setObjectName("detailSectionHeader")
         main_layout.addWidget(preview_header)
 
@@ -187,41 +253,69 @@ class DetailPane(QFrame):
             font_family=None,
             sample_text=self._sample_editor.toPlainText(),
             point_size=24.0,
-            parent=self,
+            parent=container,
         )
         main_layout.addWidget(self._preview)
 
-        main_layout.addStretch(1)
+        # 7. Installation State Banner
+        self._install_status_label = QLabel("", container)
+        self._install_status_label.setObjectName("installStatusBadge")
+        self._install_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._install_status_label.setVisible(False)
+        main_layout.addWidget(self._install_status_label)
 
-        # Installation Scope Section
-        scope_header = QLabel("Install Target Scope", self)
+        # Feedback notification label (success/error messages)
+        self._feedback_label = QLabel("", container)
+        self._feedback_label.setWordWrap(True)
+        self._feedback_label.setVisible(False)
+        main_layout.addWidget(self._feedback_label)
+
+        # 8. Installation Scope Section
+        scope_header = QLabel("Install Target Scope", container)
         scope_header.setObjectName("detailSectionHeader")
         main_layout.addWidget(scope_header)
 
-        scope_group = QButtonGroup(self)
-        self._radio_user = QRadioButton("User (No Admin / Sudo)", self)
+        scope_group = QButtonGroup(container)
+        self._radio_user = QRadioButton("User (~/.local/share/fonts) - No Sudo", container)
         self._radio_user.setChecked(True)
         self._radio_user.setCursor(Qt.CursorShape.PointingHandCursor)
         scope_group.addButton(self._radio_user)
         main_layout.addWidget(self._radio_user)
 
-        self._radio_system = QRadioButton("System-wide (Elevated Helper)", self)
+        self._radio_system = QRadioButton("System (/usr/local/share/fonts) - Helper", container)
         self._radio_system.setCursor(Qt.CursorShape.PointingHandCursor)
         scope_group.addButton(self._radio_system)
         main_layout.addWidget(self._radio_system)
 
-        # Install Action Button
-        self._install_btn = QPushButton("Install Font Family", self)
+        # 9. Action Buttons Row (Install & Uninstall)
+        self._actions_layout = QVBoxLayout()
+        self._actions_layout.setSpacing(6)
+
+        self._install_btn = QPushButton("Install Font Family", container)
         self._install_btn.setProperty("class", "primary-btn")
         self._install_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._install_btn.setStyleSheet("padding: 10px; font-size: 13px; font-weight: 700;")
         self._install_btn.clicked.connect(self._on_install_clicked)
-        main_layout.addWidget(self._install_btn)
+        self._actions_layout.addWidget(self._install_btn)
 
-        self.setLayout(main_layout)
+        self._uninstall_btn = QPushButton("Uninstall Font Family", container)
+        self._uninstall_btn.setProperty("class", "danger-btn")
+        self._uninstall_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._uninstall_btn.setStyleSheet(
+            "QPushButton { background-color: #991b1b; color: #ffffff; border: 1px solid #dc2626; padding: 8px; font-weight: 700; border-radius: 6px; } QPushButton:hover { background-color: #b91c1c; }"
+        )
+        self._uninstall_btn.clicked.connect(self._on_uninstall_clicked)
+        self._uninstall_btn.setVisible(False)
+        self._actions_layout.addWidget(self._uninstall_btn)
+
+        main_layout.addLayout(self._actions_layout)
+
+        scroll_area.setWidget(container)
+        root_layout.addWidget(scroll_area)
+        self.setLayout(root_layout)
 
     def set_font(self, font: Font) -> None:
-        """Populate inspector with font model data."""
+        """Populate inspector with font model data and refresh installation state."""
         self._font = font
         self._title_label.setText(font.family_name)
 
@@ -235,10 +329,48 @@ class DetailPane(QFrame):
         styles_count = len(font.variants) if font.variants else 1
         self._styles_badge.setText(f"{styles_count} {'Style' if styles_count == 1 else 'Styles'}")
 
-        self._nf_banner.setVisible(bool(font.has_nerd_font or font.nerd_font_slug))
+        # Update Nerd Font banner
+        self.nerd_badge.set_font(font)
 
         # Update preview family
         self._preview.set_font_family(font.family_name)
+
+        # Clear feedback
+        self._feedback_label.setVisible(False)
+
+        # Check installation status asynchronously
+        self._trigger_check_installed()
+
+    def _trigger_check_installed(self) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._check_installed_async())
+        except RuntimeError:
+            pass
+
+    async def _check_installed_async(self) -> None:
+        if not self.repository or not self._font:
+            return
+
+        try:
+            installed = await self.repository.get_installed_font(self._font.id)
+            self._installed_record = installed
+
+            if installed:
+                self._install_status_label.setText(f"✓ Installed ({installed.install_scope} Scope)")
+                self._install_status_label.setVisible(True)
+                self._uninstall_btn.setVisible(True)
+                self._install_btn.setText("Reinstall Font Family")
+                if installed.install_scope.lower() == "system":
+                    self._radio_system.setChecked(True)
+                else:
+                    self._radio_user.setChecked(True)
+            else:
+                self._install_status_label.setVisible(False)
+                self._uninstall_btn.setVisible(False)
+                self._install_btn.setText("Install Font Family")
+        except Exception as exc:
+            logger.debug("Failed to check font installation status: %s", exc)
 
     def _on_size_changed(self, value: int) -> None:
         self._size_val_label.setText(f"{value} pt")
@@ -248,12 +380,214 @@ class DetailPane(QFrame):
         weight_val = WEIGHT_MAP.get(text, 400)
         self._preview.set_font_weight(weight_val)
 
+    def _on_italic_toggled(self, checked: bool) -> None:
+        self._preview.set_italic(checked)
+
+    def _on_preset_selected(self, preset_name: str) -> None:
+        if preset_name in SAMPLE_PRESETS:
+            self._sample_editor.setPlainText(SAMPLE_PRESETS[preset_name])
+
     def _on_sample_text_changed(self) -> None:
         text = self._sample_editor.toPlainText().strip()
         self._preview.set_sample_text(text if text else get_config().default_sample_text)
 
+    def _on_nerd_switch_requested(self, slug: str, variant: str) -> None:
+        self.nerd_switch_requested.emit(slug, variant)
+
     def _on_install_clicked(self) -> None:
-        if not self._font:
+        if not self._font or self._is_busy:
             return
+
         scope = "User" if self._radio_user.isChecked() else "System"
-        self.install_requested.emit(self._font, scope)
+        variant_filter = self.nerd_badge.get_selected_variant() if self.nerd_badge.isVisible() else "Standard"
+
+        self.install_requested.emit(self._font, scope, variant_filter)
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.install_font_async(scope=scope, variant_filter=variant_filter))
+        except RuntimeError:
+            pass
+
+    def _on_uninstall_clicked(self) -> None:
+        if not self._font or self._is_busy:
+            return
+
+        scope = "User" if self._radio_user.isChecked() else "System"
+        self.uninstall_requested.emit(self._font, scope)
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.uninstall_font_async(scope=scope))
+        except RuntimeError:
+            pass
+
+    async def install_font_async(self, scope: str = "User", variant_filter: str | None = None) -> InstallResult:
+        """Download and install the active font family."""
+        if not self._font:
+            return InstallResult(
+                success=False,
+                font_id="",
+                family_name="",
+                errors=["No font selected"],
+            )
+
+        font = self._font
+        self._is_busy = True
+        self._install_btn.setEnabled(False)
+        self._uninstall_btn.setEnabled(False)
+        self._install_btn.setText("⏳ Downloading & Installing...")
+        self._feedback_label.setVisible(False)
+
+        temp_dir = Path(tempfile.mkdtemp(prefix=f"metaglyph_dl_{font.id}_"))
+
+        try:
+            # 1. Download font files
+            if font.primary_provider == "nerd_fonts":
+                nerd_prov = self.provider_manager.get_provider("nerd_fonts")
+                downloaded_files = await nerd_prov.download_font_family(
+                    font, temp_dir, variant_filter=variant_filter
+                )
+            else:
+                downloaded_files = await self.provider_manager.download_font_family(font, temp_dir)
+
+            if not downloaded_files:
+                raise ValueError("No font files could be downloaded from provider")
+
+            # 2. Dispatch to appropriate installer
+            if scope.lower() == "system":
+                result = await self.system_installer.install_font(font, downloaded_files)
+            else:
+                result = await self.user_installer.install_font(font, downloaded_files)
+
+            # 3. Present UI feedback
+            if result.success:
+                self._feedback_label.setObjectName("installFeedbackSuccess")
+                self._feedback_label.setStyleSheet(
+                    "background-color: #064e3b; color: #a7f3d0; border: 1px solid #059669; border-radius: 6px; padding: 8px;"
+                )
+                self._feedback_label.setText(f"✓ {result.message}")
+                self._feedback_label.setVisible(True)
+                await self._check_installed_async()
+            else:
+                err = "; ".join(result.errors) if result.errors else result.message
+                self._feedback_label.setObjectName("installFeedbackError")
+                self._feedback_label.setStyleSheet(
+                    "background-color: #450a0a; color: #fecaca; border: 1px solid #dc2626; border-radius: 6px; padding: 8px;"
+                )
+                self._feedback_label.setText(f"Installation failed: {err}")
+                self._feedback_label.setVisible(True)
+
+            self.install_completed.emit(result)
+            return result
+
+        except Exception as exc:
+            logger.error("Error during font installation: %s", exc)
+            self._feedback_label.setObjectName("installFeedbackError")
+            self._feedback_label.setStyleSheet(
+                "background-color: #450a0a; color: #fecaca; border: 1px solid #dc2626; border-radius: 6px; padding: 8px;"
+            )
+            self._feedback_label.setText(f"Installation error: {exc}")
+            self._feedback_label.setVisible(True)
+
+            fail_res = InstallResult(
+                success=False,
+                font_id=font.id,
+                family_name=font.family_name,
+                scope=scope,
+                errors=[str(exc)],
+                message=str(exc),
+            )
+            self.install_completed.emit(fail_res)
+            return fail_res
+
+        finally:
+            self._is_busy = False
+            self._install_btn.setEnabled(True)
+            self._uninstall_btn.setEnabled(True)
+            if self._installed_record:
+                self._install_btn.setText("Reinstall Font Family")
+            else:
+                self._install_btn.setText("Install Font Family")
+            # Clean up temp download directory
+            try:
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            except Exception:
+                pass
+
+    async def uninstall_font_async(self, scope: str = "User") -> InstallResult:
+        """Uninstall the active font family."""
+        if not self._font:
+            return InstallResult(
+                success=False,
+                font_id="",
+                family_name="",
+                errors=["No font selected"],
+            )
+
+        font = self._font
+        self._is_busy = True
+        self._install_btn.setEnabled(False)
+        self._uninstall_btn.setEnabled(False)
+        self._uninstall_btn.setText("⏳ Uninstalling...")
+        self._feedback_label.setVisible(False)
+
+        try:
+            # Look up file paths from installed record
+            file_paths = []
+            if self._installed_record:
+                file_paths = [Path(p) for p in self._installed_record.file_paths]
+
+            result = await self.uninstaller.uninstall_font(
+                font_id=font.id,
+                family_name=font.family_name,
+                file_paths=file_paths,
+                scope=scope,
+            )
+
+            if result.success:
+                self._feedback_label.setObjectName("installFeedbackSuccess")
+                self._feedback_label.setStyleSheet(
+                    "background-color: #064e3b; color: #a7f3d0; border: 1px solid #059669; border-radius: 6px; padding: 8px;"
+                )
+                self._feedback_label.setText(f"✓ {result.message}")
+                self._feedback_label.setVisible(True)
+                await self._check_installed_async()
+            else:
+                err = "; ".join(result.errors) if result.errors else result.message
+                self._feedback_label.setObjectName("installFeedbackError")
+                self._feedback_label.setStyleSheet(
+                    "background-color: #450a0a; color: #fecaca; border: 1px solid #dc2626; border-radius: 6px; padding: 8px;"
+                )
+                self._feedback_label.setText(f"Uninstall failed: {err}")
+                self._feedback_label.setVisible(True)
+
+            self.uninstall_completed.emit(result)
+            return result
+
+        except Exception as exc:
+            logger.error("Error during font uninstallation: %s", exc)
+            self._feedback_label.setObjectName("installFeedbackError")
+            self._feedback_label.setStyleSheet(
+                "background-color: #450a0a; color: #fecaca; border: 1px solid #dc2626; border-radius: 6px; padding: 8px;"
+            )
+            self._feedback_label.setText(f"Uninstall error: {exc}")
+            self._feedback_label.setVisible(True)
+
+            fail_res = InstallResult(
+                success=False,
+                font_id=font.id,
+                family_name=font.family_name,
+                scope=scope,
+                errors=[str(exc)],
+                message=str(exc),
+            )
+            self.uninstall_completed.emit(fail_res)
+            return fail_res
+
+        finally:
+            self._is_busy = False
+            self._install_btn.setEnabled(True)
+            self._uninstall_btn.setEnabled(True)
+            self._uninstall_btn.setText("Uninstall Font Family")

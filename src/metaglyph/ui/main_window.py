@@ -18,6 +18,10 @@ from PySide6.QtWidgets import (
 from metaglyph.core.events import get_event_bus
 from metaglyph.db.models import Font
 from metaglyph.db.repository import FontRepository
+from metaglyph.installer.detector import FontDetector
+from metaglyph.installer.system_installer import SystemFontInstaller
+from metaglyph.installer.uninstaller import FontUninstaller
+from metaglyph.installer.user_installer import UserFontInstaller
 from metaglyph.providers.manager import ProviderManager
 from metaglyph.subsetting.fetcher import SubsetFetcher
 from metaglyph.ui.components.sidebar import SidebarWidget
@@ -37,12 +41,24 @@ class MainWindow(QMainWindow):
         repository: FontRepository | None = None,
         subset_fetcher: SubsetFetcher | None = None,
         provider_manager: ProviderManager | None = None,
+        user_installer: UserFontInstaller | None = None,
+        system_installer: SystemFontInstaller | None = None,
+        uninstaller: FontUninstaller | None = None,
+        detector: FontDetector | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.repository = repository
         self.subset_fetcher = subset_fetcher
         self.provider_manager = provider_manager or ProviderManager()
+        self.user_installer = user_installer or UserFontInstaller(repository=repository)
+        self.system_installer = system_installer or SystemFontInstaller(repository=repository)
+        self.uninstaller = uninstaller or FontUninstaller(
+            repository=repository,
+            user_installer=self.user_installer,
+            system_installer=self.system_installer,
+        )
+        self.detector = detector or FontDetector()
 
         self._sync_task: asyncio.Task | None = None
 
@@ -82,6 +98,8 @@ class MainWindow(QMainWindow):
         )
         self.system_view = SystemView(
             repository=self.repository,
+            detector=self.detector,
+            uninstaller=self.uninstaller,
             parent=self.stack,
         )
 
@@ -93,6 +111,11 @@ class MainWindow(QMainWindow):
 
         # 3. Right Detail Pane Inspector (initially hidden until a font is selected)
         self.detail_pane = DetailPane(
+            repository=self.repository,
+            provider_manager=self.provider_manager,
+            user_installer=self.user_installer,
+            system_installer=self.system_installer,
+            uninstaller=self.uninstaller,
             subset_fetcher=self.subset_fetcher,
             parent=central_widget,
         )
@@ -140,12 +163,20 @@ class MainWindow(QMainWindow):
 
         # Detail Pane
         self.detail_pane.closed.connect(lambda: self.detail_pane.setVisible(False))
+        self.detail_pane.nerd_switch_requested.connect(self._on_nerd_switch_requested)
+        self.detail_pane.install_completed.connect(self._on_install_completed)
+        self.detail_pane.uninstall_completed.connect(self._on_uninstall_completed)
+
+        # System View
+        self.system_view.batch_uninstall_completed.connect(self._on_batch_uninstall_completed)
+        self.system_view.font_uninstalled.connect(self._on_single_font_uninstalled)
 
     def _subscribe_events(self) -> None:
         bus = get_event_bus()
         bus.subscribe("catalog_synced", self._on_catalog_synced_event)
         bus.subscribe("font_installed", self._on_install_state_changed_event)
         bus.subscribe("font_uninstalled", self._on_install_state_changed_event)
+        bus.subscribe("system_fonts_scanned", self._on_system_fonts_scanned_event)
 
     def _initial_load(self) -> None:
         """Schedule initial async data load."""
@@ -182,6 +213,63 @@ class MainWindow(QMainWindow):
         """Display font details in the right inspector drawer."""
         self.detail_pane.set_font(font)
         self.detail_pane.setVisible(True)
+
+    def _on_nerd_switch_requested(self, target_slug: str, variant: str) -> None:
+        """Switch Detail Pane to target counterpart font (standard or Nerd Font)."""
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._switch_nerd_font_async(target_slug, variant))
+        except RuntimeError:
+            pass
+
+    async def _switch_nerd_font_async(self, target_slug: str, variant: str) -> None:
+        if not self.repository:
+            return
+
+        try:
+            target_font = await self.repository.get_font_by_slug_or_family(target_slug)
+            if target_font:
+                self.detail_pane.set_font(target_font)
+                self.detail_pane.nerd_badge.set_selected_variant(variant)
+            else:
+                logger.info("Counterpart font '%s' not indexed in local catalog", target_slug)
+        except Exception as exc:
+            logger.warning("Failed to switch to counterpart font %s: %s", target_slug, exc)
+
+    def _on_install_completed(self, result: object) -> None:
+        msg = getattr(result, "message", "Font installation completed")
+        self._status_msg_label.setText(f"Status: {msg}")
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.refresh_stats_async())
+        except RuntimeError:
+            pass
+
+    def _on_uninstall_completed(self, result: object) -> None:
+        msg = getattr(result, "message", "Font uninstallation completed")
+        self._status_msg_label.setText(f"Status: {msg}")
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.refresh_stats_async())
+        except RuntimeError:
+            pass
+
+    def _on_batch_uninstall_completed(self, results: list) -> None:
+        count = len(results)
+        self._status_msg_label.setText(f"Status: Batch uninstalled {count} font(s)")
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.refresh_stats_async())
+        except RuntimeError:
+            pass
+
+    def _on_single_font_uninstalled(self, font_id: str, scope: str) -> None:
+        self._status_msg_label.setText(f"Status: Uninstalled {font_id} ({scope} Scope)")
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.refresh_stats_async())
+        except RuntimeError:
+            pass
 
     def start_catalog_sync(self) -> None:
         """Trigger background catalog sync across all providers."""
@@ -242,6 +330,13 @@ class MainWindow(QMainWindow):
             pass
 
     def _on_install_state_changed_event(self, **kwargs) -> None:
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.refresh_stats_async())
+        except RuntimeError:
+            pass
+
+    def _on_system_fonts_scanned_event(self, **kwargs) -> None:
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self.refresh_stats_async())

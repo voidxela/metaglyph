@@ -571,3 +571,142 @@ QToolTip {
     padding: 4px 8px;
     font-size: 11px;
 }
+
+/* Nerd Font Badge */
+#nerdBadge {
+    background-color: #201335;
+    border: 1px solid #4c1d95;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+#nerdBadgeTitle {
+    color: #c084fc;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+#nerdBadgeDesc {
+    color: #94a3b8;
+    font-size: 11px;
+}
+
+#nerdVariantCombo {
+    background-color: #1a102b;
+    border: 1px solid #3b1875;
+    border-radius: 4px;
+    color: #f5d0fe;
+    padding: 4px 8px;
+    font-size: 11px;
+    min-width: 90px;
+}
+
+#nerdBadgeBtn {
+    background-color: #4c1d95;
+    color: #f5d0fe;
+    border: 1px solid #7c3aed;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+#nerdBadgeBtn:hover {
+    background-color: #5b21b6;
+    color: #ffffff;
+    border-color: #a855f7;
+}
+
+/* Batch Action Bar (System View) */
+#batchBar {
+    background-color: #16161d;
+    border: 1px solid #282836;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+#batchSelectedLabel {
+    color: #e2e8f0;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#batchUninstallBtn {
+    background-color: #991b1b;
+    color: #fef2f2;
+    border: 1px solid #dc2626;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+#batchUninstallBtn:hover {
+    background-color: #b91c1c;
+    border-color: #ef4444;
+}
+
+#batchUninstallBtn:disabled {
+    background-color: #1f1f26;
+    color: #4b5563;
+    border-color: #272732;
+}
+
+/* System Font Cards */
+#systemFontCard {
+    background-color: #17171e;
+    border: 1px solid #252532;
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+#systemFontCard:hover {
+    background-color: #1c1c25;
+    border-color: #3b3b4e;
+}
+
+#systemFontDetailsBox {
+    background-color: #121217;
+    border: 1px solid #22222d;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 4px;
+}
+
+#systemFontPath {
+    font-family: monospace;
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+/* Installation Feedback Banners */
+#installFeedbackSuccess {
+    background-color: #064e3b;
+    border: 1px solid #059669;
+    border-radius: 6px;
+    color: #a7f3d0;
+    padding: 8px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+#installFeedbackError {
+    background-color: #450a0a;
+    border: 1px solid #dc2626;
+    border-radius: 6px;
+    color: #fecaca;
+    padding: 8px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+#installStatusBadge {
+    background-color: #064e3b;
+    color: #34d399;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid #059669;
+}
+

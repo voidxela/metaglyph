@@ -440,6 +440,33 @@ class FontRepository:
                 for row in rows
             ]
 
+    async def get_installed_font(self, font_id: str, scope: str | None = None) -> InstalledFont | None:
+        """Retrieve a specific installed font record by font ID and optional scope."""
+        async with self._db.connection() as conn:
+            if scope:
+                cursor = await conn.execute(
+                    "SELECT * FROM installed_fonts WHERE font_id = ? AND install_scope = ? LIMIT 1",
+                    (font_id, scope),
+                )
+            else:
+                cursor = await conn.execute(
+                    "SELECT * FROM installed_fonts WHERE font_id = ? LIMIT 1",
+                    (font_id,),
+                )
+            row = await cursor.fetchone()
+            if row is None:
+                return None
+            return InstalledFont.from_db_row(
+                id=row["id"],
+                font_id=row["font_id"],
+                family_name=row["family_name"],
+                provider=row["provider"],
+                version=row["version"],
+                install_scope=row["install_scope"],
+                installed_at=row["installed_at"],
+                file_paths_str=row["file_paths"],
+            )
+
     async def is_font_installed(self, font_id: str) -> bool:
         """Check if a font is currently recorded as installed."""
         async with self._db.connection() as conn:
