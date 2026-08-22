@@ -491,3 +491,65 @@ async def test_uninstaller_single_and_model_routing(
     assert not user_font_file.exists()
     assert len(await repository.get_installed_fonts()) == 0
 
+
+def test_ipc_manifest_install_and_uninstall_schema_structure(
+    test_config: Config,
+    sample_font_jetbrains: Font,
+    tmp_path: Path,
+) -> None:
+    """Verify generated JSON manifests strictly match Rust Helper manifest schema definition."""
+    system_installer = SystemFontInstaller(config=test_config)
+
+    # 1. Install Manifest Schema
+    f1 = tmp_path / "JetBrainsMono-Regular.ttf"
+    f1.write_bytes(synthesize_test_font_bytes("JetBrains Mono", "Regular"))
+
+    captured_manifests: list[dict] = []
+
+    async def fake_invoke(manifest: dict):
+        captured_manifests.append(manifest)
+        return True, {"success": True, "installed_files": [str(test_config.system_fonts_dir / f1.name)]}, []
+
+    system_installer._invoke_helper = fake_invoke  # type: ignore[assignment]
+
+    import asyncio
+    asyncio.run(system_installer.install_font(sample_font_jetbrains, [f1]))
+
+    assert len(captured_manifests) == 1
+    install_manifest = captured_manifests[0]
+
+    # Validate schema fields required by Rust helper Manifest struct
+    assert install_manifest["version"] == 1
+    assert install_manifest["action"] == "install"
+    assert install_manifest["target_scope"] == "system"
+    assert isinstance(install_manifest["target_dir"], str)
+    assert isinstance(install_manifest["fonts"], list)
+    assert len(install_manifest["fonts"]) == 1
+
+    font_entry = install_manifest["fonts"][0]
+    assert font_entry["family_name"] == "JetBrains Mono"
+    assert isinstance(font_entry["files"], list)
+    assert len(font_entry["files"]) == 1
+
+    file_entry = font_entry["files"][0]
+    assert "source_path" in file_entry
+    assert "destination_filename" in file_entry
+    assert file_entry["destination_filename"] == "JetBrainsMono-Regular.ttf"
+
+    # 2. Uninstall Manifest Schema
+    captured_manifests.clear()
+    dest_path = test_config.system_fonts_dir / f1.name
+    asyncio.run(system_installer.uninstall_font("jetbrains-mono", "JetBrains Mono", [dest_path]))
+
+    assert len(captured_manifests) == 1
+    uninstall_manifest = captured_manifests[0]
+    assert uninstall_manifest["version"] == 1
+    assert uninstall_manifest["action"] == "uninstall"
+    assert uninstall_manifest["target_scope"] == "system"
+    assert len(uninstall_manifest["fonts"]) == 1
+    uninst_font = uninstall_manifest["fonts"][0]
+    assert uninst_font["family_name"] == "JetBrains Mono"
+    assert len(uninst_font["files"]) == 1
+    assert "destination_path" in uninst_font["files"][0]
+    assert uninst_font["files"][0]["destination_path"] == str(dest_path.resolve())
+

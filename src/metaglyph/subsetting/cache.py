@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import uuid
 from pathlib import Path
 from metaglyph.core.config import get_config
 
@@ -91,13 +92,15 @@ class SubsetCache:
         """Save subset font bytes to cache and prune if necessary."""
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         path = self.get_path(font_id, sample_text, weight, style)
-        temp_path = path.with_suffix(".tmp")
+        temp_path = path.with_name(f"{path.stem}_{uuid.uuid4().hex[:8]}.tmp")
         try:
             temp_path.write_bytes(data)
             temp_path.replace(path)
         except OSError:
             # Fallback to direct write if atomic replace fails
             path.write_bytes(data)
+        finally:
+            temp_path.unlink(missing_ok=True)
 
         self.prune()
         return path

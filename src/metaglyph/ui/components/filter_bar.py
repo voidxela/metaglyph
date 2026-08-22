@@ -247,12 +247,25 @@ class FilterBar(QWidget):
         self._is_variable_only = False
         self._has_nerd_font_only = False
 
-        if self._category_buttons:
-            self._category_buttons[0].setChecked(True)
-        if self._provider_buttons:
-            self._provider_buttons[0].setChecked(True)
+        widgets_to_block = [
+            *self._category_buttons,
+            *self._provider_buttons,
+            self._variable_check,
+            self._nerd_check,
+        ]
+        for w in widgets_to_block:
+            w.blockSignals(True)
 
-        self._variable_check.setChecked(False)
-        self._nerd_check.setChecked(False)
+        try:
+            if self._category_buttons:
+                self._category_buttons[0].setChecked(True)
+            if self._provider_buttons:
+                self._provider_buttons[0].setChecked(True)
+
+            self._variable_check.setChecked(False)
+            self._nerd_check.setChecked(False)
+        finally:
+            for w in widgets_to_block:
+                w.blockSignals(False)
 
         self._emit_filter_changed()

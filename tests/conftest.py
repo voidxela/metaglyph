@@ -5,13 +5,13 @@ from __future__ import annotations
 import io
 import os
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Generator
 import pytest
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from PySide6.QtWidgets import QApplication
 
-from metaglyph.core.config import Config, set_config
+from metaglyph.core.config import Config, get_config, set_config
 from metaglyph.db.database import DatabaseManager
 from metaglyph.db.models import Font, FontVariant, InstalledFont, SystemFontCacheEntry
 from metaglyph.db.repository import FontRepository
@@ -84,8 +84,9 @@ def temp_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def test_config(temp_dir: Path) -> Config:
-    """Provide isolated test Config."""
+def test_config(temp_dir: Path) -> Generator[Config, None, None]:
+    """Provide isolated test Config and restore previous config on teardown."""
+    original_cfg = get_config()
     cfg = Config(
         data_dir_override=temp_dir / "data",
         config_dir_override=temp_dir / "config",
@@ -93,7 +94,10 @@ def test_config(temp_dir: Path) -> Config:
     )
     cfg.ensure_directories()
     set_config(cfg)
-    return cfg
+    try:
+        yield cfg
+    finally:
+        set_config(original_cfg)
 
 
 @pytest.fixture

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import logging.handlers
 import sys
 from pathlib import Path
 from typing import TextIO
@@ -37,13 +38,15 @@ def setup_logging(
     console_handler.setLevel(level)
     root_logger.addHandler(console_handler)
 
-    # File Handler
+    # File Handler with rotation (max 5MB, 3 backups)
     if log_to_file:
         try:
             config = get_config()
             config.cache_dir.mkdir(parents=True, exist_ok=True)
             log_file = config.cache_dir / "metaglyph.log"
-            file_handler = logging.FileHandler(log_file, encoding="utf-8")
+            file_handler = logging.handlers.RotatingFileHandler(
+                log_file, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
+            )
             file_handler.setFormatter(formatter)
             file_handler.setLevel(level)
             root_logger.addHandler(file_handler)

@@ -13,16 +13,16 @@ logger = logging.getLogger(__name__)
 def extract_font_family_name(file_path: Path) -> str:
     """Extract font family name from font binary metadata without requiring Qt."""
     try:
-        font = TTFont(file_path)
-        name_table = font.get("name")
-        if name_table:
-            # ID 1 is Font Family name, ID 16 is Typographic Family name
-            typographic_family = name_table.getDebugName(16)
-            if typographic_family:
-                return typographic_family
-            font_family = name_table.getDebugName(1)
-            if font_family:
-                return font_family
+        with TTFont(file_path, fontNumber=0, lazy=True) as font:
+            name_table = font.get("name")
+            if name_table:
+                # ID 1 is Font Family name, ID 16 is Typographic Family name
+                typographic_family = name_table.getDebugName(16)
+                if typographic_family:
+                    return typographic_family
+                font_family = name_table.getDebugName(1)
+                if font_family:
+                    return font_family
     except Exception as exc:
         logger.debug("Failed to extract font family from %s: %s", file_path, exc)
 
@@ -63,7 +63,7 @@ class FontLoader:
             return self._loaded[file_path]
 
         qt_font_id = -1
-        family_name = extract_font_family_name(file_path)
+        family_name = ""
 
         if self._is_gui_running():
             from PySide6.QtGui import QFontDatabase
@@ -75,6 +75,9 @@ class FontLoader:
                     family_name = families[0]
             else:
                 logger.warning("QFontDatabase failed to load font at %s", file_path)
+
+        if not family_name:
+            family_name = extract_font_family_name(file_path)
 
         self._loaded[file_path] = (qt_font_id, family_name)
         self._enforce_capacity()

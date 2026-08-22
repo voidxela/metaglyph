@@ -7,7 +7,6 @@ from metaglyph.core.config import get_config
 
 # Regex patterns for slug normalization
 _SLUG_CLEAN_RE = re.compile(r"[^a-z0-9]+")
-_CAMEL_TO_SNAKE_RE = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 
 # Known foundry prefixes to optionally strip or clean
 _FOUNDRY_PREFIXES = [

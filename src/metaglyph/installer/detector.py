@@ -69,13 +69,8 @@ class FontDetector:
         home = Path.home().resolve()
         resolved = file_path.resolve()
 
-        try:
-            if resolved.is_relative_to(user_fonts_dir) or resolved.is_relative_to(home):
-                return "User"
-        except AttributeError:
-            # Python < 3.9 fallback if needed (though we require 3.11+)
-            if str(resolved).startswith(str(user_fonts_dir)) or str(resolved).startswith(str(home)):
-                return "User"
+        if resolved.is_relative_to(user_fonts_dir) or resolved.is_relative_to(home):
+            return "User"
 
         return "System"
 
@@ -100,9 +95,15 @@ class FontDetector:
                 continue
 
             try:
-                for root, _, files in os.walk(base_dir):
-                    root_path = Path(root)
-                    for file_name in files:
+                walk_iter = os.walk(base_dir)
+            except Exception as e:
+                logger.warning("Error accessing directory %s: %s", base_dir, e)
+                continue
+
+            for root, _, files in walk_iter:
+                root_path = Path(root)
+                for file_name in files:
+                    try:
                         p = root_path / file_name
                         if p.suffix.lower() in valid_extensions:
                             abs_path_str = str(p.resolve())
@@ -124,8 +125,8 @@ class FontDetector:
                                 is_metaglyph_managed=is_metaglyph,
                                 last_scanned_at=now,
                             )
-            except Exception as e:
-                logger.warning("Error scanning directory %s: %s", base_dir, e)
+                    except Exception as e:
+                        logger.warning("Error processing font file %s/%s: %s", root, file_name, e)
 
         return list(discovered.values())
 
