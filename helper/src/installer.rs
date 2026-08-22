@@ -128,6 +128,13 @@ pub fn execute_install(manifest: &Manifest) -> Result<Vec<String>> {
             })?;
 
             let dest_path = if let Some(dest_p) = &file_entry.destination_path {
+                if !dest_p.starts_with(&target_dir) {
+                    anyhow::bail!(
+                        "Destination path {:?} is not within target directory {:?}",
+                        dest_p,
+                        target_dir
+                    );
+                }
                 dest_p.clone()
             } else if let Some(dest_name) = &file_entry.destination_filename {
                 target_dir.join(dest_name)
@@ -158,6 +165,13 @@ pub fn execute_uninstall(manifest: &Manifest) -> Result<Vec<String>> {
     for font in &manifest.fonts {
         for file_entry in &font.files {
             let dest_path = if let Some(dest_p) = &file_entry.destination_path {
+                if !dest_p.starts_with(&target_dir) {
+                    anyhow::bail!(
+                        "Destination path {:?} is not within target directory {:?}",
+                        dest_p,
+                        target_dir
+                    );
+                }
                 dest_p.clone()
             } else if let Some(dest_name) = &file_entry.destination_filename {
                 target_dir.join(dest_name)

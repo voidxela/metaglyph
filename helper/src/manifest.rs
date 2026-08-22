@@ -157,6 +157,37 @@ pub fn sanitize_filename(filename: &str) -> Result<String> {
     Ok(name.to_string())
 }
 
+/// Validate destination path to ensure it resides within the allowed target directory and has a valid font filename.
+pub fn validate_destination_path(dest_path: &Path, target_dir: Option<&Path>) -> Result<()> {
+    let filename = dest_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Destination path missing filename: {:?}", dest_path))?;
+
+    sanitize_filename(filename)?;
+
+    for comp in dest_path.components() {
+        if let std::path::Component::ParentDir = comp {
+            bail!(
+                "Path traversal component ('..') detected in destination path: {:?}",
+                dest_path
+            );
+        }
+    }
+
+    if let Some(target) = target_dir {
+        if !dest_path.starts_with(target) {
+            bail!(
+                "Destination path {:?} is not confined to authorized target directory {:?}",
+                dest_path,
+                target
+            );
+        }
+    }
+
+    Ok(())
+}
+
 /// Parse and validate a Manifest from a JSON string or file reader.
 pub fn parse_and_validate_manifest(content: &str) -> Result<Manifest> {
     let manifest: Manifest = serde_json::from_str(content)
@@ -196,6 +227,10 @@ pub fn parse_and_validate_manifest(content: &str) -> Result<Manifest> {
                     if let Some(dest_name) = &file_entry.destination_filename {
                         sanitize_filename(dest_name)?;
                     }
+
+                    if let Some(dest_path) = &file_entry.destination_path {
+                        validate_destination_path(dest_path, manifest.target_dir.as_deref())?;
+                    }
                 }
                 ManifestAction::Uninstall => {
                     if file_entry.destination_filename.is_none()
@@ -208,6 +243,9 @@ pub fn parse_and_validate_manifest(content: &str) -> Result<Manifest> {
                     }
                     if let Some(dest_name) = &file_entry.destination_filename {
                         sanitize_filename(dest_name)?;
+                    }
+                    if let Some(dest_path) = &file_entry.destination_path {
+                        validate_destination_path(dest_path, manifest.target_dir.as_deref())?;
                     }
                 }
             }
