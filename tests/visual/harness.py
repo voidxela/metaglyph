@@ -46,6 +46,159 @@ class VisualSnapshot:
     timestamp: float = 0.0
 
 
+def _build_character_glyph(char: str) -> tuple[object, int, int]:
+    """Synthesize vector glyph contours for a character, returning (glyph, width, lsb)."""
+    pen = TTGlyphPen(None)
+    if char == " " or ord(char) < 32:
+        return pen.glyph(), 360, 0
+
+    code = ord(char)
+    # Character metrics
+    if char in "ijl|!1':;.,":
+        w = 340
+        lsb = 50
+    elif char in "mwMW@":
+        w = 880
+        lsb = 60
+    elif char in "abcdeghknopqrsuvxyz023456789":
+        w = 580
+        lsb = 50
+    else:
+        w = 680
+        lsb = 60
+
+    r = w - lsb
+    thick = 70
+
+    if char.isupper() or char.isdigit() or char in "!@#$%^&*()_+{}|:\"<>?~":
+        top = 750
+        base = 80
+        mid = (top + base) // 2
+    elif char in "bdfhkl":
+        top = 750
+        base = 80
+        mid = 320
+    elif char in "gjpqy":
+        top = 500
+        base = -160
+        mid = 180
+    else:
+        top = 500
+        base = 80
+        mid = (top + base) // 2
+
+    # Draw distinctive geometric stroke polygons based on character category
+    if char in "IL1|!":
+        # Vertical column
+        cx = (lsb + r) // 2
+        pen.moveTo((cx - thick // 2, base))
+        pen.lineTo((cx - thick // 2, top))
+        pen.lineTo((cx + thick // 2, top))
+        pen.lineTo((cx + thick // 2, base))
+        pen.closePath()
+        if char == "L":
+            pen.moveTo((cx - thick // 2, base))
+            pen.lineTo((r, base))
+            pen.lineTo((r, base + thick))
+            pen.lineTo((cx - thick // 2, base + thick))
+            pen.closePath()
+    elif char in ".-_~`=":
+        # Low horizontal or dot
+        y1 = base if char in "._" else (mid if char == "-" else top - thick)
+        pen.moveTo((lsb, y1))
+        pen.lineTo((r, y1))
+        pen.lineTo((r, y1 + thick))
+        pen.lineTo((lsb, y1 + thick))
+        pen.closePath()
+    elif char in "T":
+        # Crossbar + stem
+        cx = (lsb + r) // 2
+        pen.moveTo((lsb, top - thick))
+        pen.lineTo((r, top - thick))
+        pen.lineTo((r, top))
+        pen.lineTo((lsb, top))
+        pen.closePath()
+        pen.moveTo((cx - thick // 2, base))
+        pen.lineTo((cx + thick // 2, base))
+        pen.lineTo((cx + thick // 2, top - thick))
+        pen.lineTo((cx - thick // 2, top - thick))
+        pen.closePath()
+    elif char in "EFH":
+        # Left stem + horizontals
+        pen.moveTo((lsb, base))
+        pen.lineTo((lsb + thick, base))
+        pen.lineTo((lsb + thick, top))
+        pen.lineTo((lsb, top))
+        pen.closePath()
+        pen.moveTo((lsb + thick, top - thick))
+        pen.lineTo((r, top - thick))
+        pen.lineTo((r, top))
+        pen.lineTo((lsb + thick, top))
+        pen.closePath()
+        pen.moveTo((lsb + thick, mid - thick // 2))
+        pen.lineTo((r - 60 if char != 'H' else r - thick, mid - thick // 2))
+        pen.lineTo((r - 60 if char != 'H' else r - thick, mid + thick // 2))
+        pen.lineTo((lsb + thick, mid + thick // 2))
+        pen.closePath()
+        if char == "E":
+            pen.moveTo((lsb + thick, base))
+            pen.lineTo((r, base))
+            pen.lineTo((r, base + thick))
+            pen.lineTo((lsb + thick, base))
+            pen.closePath()
+        elif char == "H":
+            pen.moveTo((r - thick, base))
+            pen.lineTo((r, base))
+            pen.lineTo((r, top))
+            pen.lineTo((r - thick, top))
+            pen.closePath()
+    elif char in "O0CQD":
+        # Rounded outer loop with counter
+        pen.moveTo((lsb + 60, base))
+        pen.lineTo((r - 60, base))
+        pen.lineTo((r, base + 60))
+        pen.lineTo((r, top - 60))
+        pen.lineTo((r - 60, top))
+        pen.lineTo((lsb + 60, top))
+        pen.lineTo((lsb, top - 60))
+        pen.lineTo((lsb, base + 60))
+        pen.closePath()
+        # Inner counter
+        pen.moveTo((lsb + thick + 40, base + thick + 30))
+        pen.lineTo((lsb + thick, base + thick + 50))
+        pen.lineTo((lsb + thick, top - thick - 50))
+        pen.lineTo((lsb + thick + 40, top - thick - 30))
+        pen.lineTo((r - thick - 40, top - thick - 30))
+        pen.lineTo((r - thick, top - thick - 50))
+        pen.lineTo((r - thick, base + thick + 50))
+        pen.lineTo((r - thick - 40, base + thick + 30))
+        pen.closePath()
+    else:
+        # Generic clean geometric letter shape with character-specific cutouts
+        pen.moveTo((lsb + 30, base))
+        pen.lineTo((r - 30, base))
+        pen.lineTo((r, base + 30))
+        pen.lineTo((r, top - 30))
+        pen.lineTo((r - 30, top))
+        pen.lineTo((lsb + 30, top))
+        pen.lineTo((lsb, top - 30))
+        pen.lineTo((lsb, base + 30))
+        pen.closePath()
+        # Inner window
+        in_l = lsb + thick
+        in_r = r - thick
+        in_b = base + thick
+        in_t = top - thick
+        if in_r > in_l + 20 and in_t > in_b + 20:
+            pen.moveTo((in_l, in_b))
+            pen.lineTo((in_l, in_t))
+            pen.lineTo((in_r, in_t))
+            pen.lineTo((in_r, in_b))
+            pen.closePath()
+
+    return pen.glyph(), w, lsb
+
+
 def synthesize_valid_ttf(
     family_name: str = "Metaglyph Test Font",
     style_name: str = "Regular",
@@ -55,7 +208,7 @@ def synthesize_valid_ttf(
     if sample_text is None:
         chars = [chr(c) for c in range(32, 127)]
     else:
-        chars = list(set(sample_text + " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"))
+        chars = list(set(sample_text + " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;':\",./<>?"))
 
     fb = FontBuilder(1000, isTTF=True)
     glyph_names = [".notdef"] + [f"uni{ord(c):04X}" if c != " " else "space" for c in chars]
@@ -67,24 +220,25 @@ def synthesize_valid_ttf(
     cmap = {ord(c): ("space" if c == " " else f"uni{ord(c):04X}") for c in chars}
     fb.setupCharacterMap(cmap)
 
-    pen = TTGlyphPen(None)
-    pen.moveTo((100, 100))
-    pen.lineTo((100, 800))
-    pen.lineTo((750, 800))
-    pen.lineTo((750, 100))
-    pen.closePath()
-    box_glyph = pen.glyph()
+    glyphs_dict = {}
+    h_metrics = {}
 
     blank_pen = TTGlyphPen(None)
     blank_glyph = blank_pen.glyph()
-
-    glyphs_dict = {name: box_glyph for name in glyph_names}
     glyphs_dict[".notdef"] = blank_glyph
     glyphs_dict["space"] = blank_glyph
+    h_metrics[".notdef"] = (500, 0)
+    h_metrics["space"] = (360, 0)
+
+    for c in chars:
+        if c == " ":
+            continue
+        g_name = f"uni{ord(c):04X}"
+        glyph, width, lsb = _build_character_glyph(c)
+        glyphs_dict[g_name] = glyph
+        h_metrics[g_name] = (width, lsb)
 
     fb.setupGlyf(glyphs_dict)
-    h_metrics = {name: (900, 50) for name in glyph_names}
-    h_metrics["space"] = (450, 0)
     fb.setupHorizontalMetrics(h_metrics)
     fb.setupHorizontalHeader(ascent=850, descent=-150)
     fb.setupNameTable({"familyName": family_name, "styleName": style_name})

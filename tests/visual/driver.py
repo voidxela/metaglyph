@@ -240,9 +240,8 @@ class UIDriver:
     async def toggle_detail_italic(self, italic: bool = True) -> None:
         """Toggle italic preview in detail pane."""
         detail = self.window.detail_pane
-        if detail._italic_check.isChecked() != italic:
-            QTest.mouseClick(detail._italic_check, Qt.MouseButton.LeftButton)
-            await self.wait_for_idle(100)
+        detail._italic_check.setChecked(italic)
+        await self.wait_for_idle(100)
 
     async def set_detail_preset_sample(self, preset_name: str) -> bool:
         """Select a sample text preset in detail pane."""
