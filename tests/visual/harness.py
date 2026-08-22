@@ -506,7 +506,11 @@ class VisualHarness:
         """Clean up database, windows, and temp files."""
         if self.window:
             self.window.close()
+            self.window.deleteLater()
             self.window = None
+            app = QApplication.instance()
+            if app is not None:
+                app.processEvents()
 
         if self.db_manager:
             await self.db_manager.close()

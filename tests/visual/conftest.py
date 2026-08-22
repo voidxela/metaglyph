@@ -16,7 +16,10 @@ from .harness import VisualHarness
 def qapp_session() -> QApplication:
     """Ensure QApplication is created in offscreen mode for all visual tests."""
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
-    return create_application()
+    app = QApplication.instance()
+    if app is None:
+        app = create_application()
+    return app
 
 
 @pytest.fixture
