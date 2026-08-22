@@ -21,7 +21,7 @@ class Config(BaseModel):
     system_font_search_paths_override: list[Path] | None = None
     platform_override: str | None = None
 
-    default_sample_text: str = "The quick brown fox jumps over the lazy dog."
+    default_sample_text: str = "The five boxing wizards jump quickly."
     default_font_size: float = 24.0
     curated_categories: list[str] = Field(
         default_factory=lambda: [

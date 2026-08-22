@@ -219,7 +219,7 @@ class SystemFontItemWidget(QFrame):
         is_italic = "italic" in self.style_name.lower() or "oblique" in self.style_name.lower()
         self.preview_widget = FontPreviewWidget(
             font_family=preview_family,
-            sample_text="The quick brown fox jumps over the lazy dog 1234567890",
+            sample_text="The five boxing wizards jump quickly.",
             point_size=20.0,
             weight=_variant_to_qfont_weight(self.style_name),
             italic=is_italic,

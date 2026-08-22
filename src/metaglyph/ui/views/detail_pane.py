@@ -51,6 +51,7 @@ WEIGHT_MAP: dict[str, int] = {
 }
 
 SAMPLE_PRESETS: dict[str, str] = {
+    "Boxing Wizards": "The five boxing wizards jump quickly.",
     "Quick Brown Fox": "The quick brown fox jumps over the lazy dog.",
     "Alphabet": "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz",
     "Numerals & Symbols": "0123456789 !@#$%^&*()_+=-`~[]\\{}|;':\",./<>?",
