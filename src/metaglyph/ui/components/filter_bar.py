@@ -172,8 +172,13 @@ class FilterBar(QWidget):
         self.setLayout(root_layout)
 
     def _on_category_clicked(self, category_val: str | None) -> None:
-        self._active_category = category_val
-        self._active_curated_category = None
+        curated_names = {"interface", "code", "header", "prose", "display", "handwriting"}
+        if category_val and category_val.lower() in curated_names:
+            self._active_curated_category = category_val
+            self._active_category = None
+        else:
+            self._active_category = category_val
+            self._active_curated_category = None
         self._emit_filter_changed()
 
     def _on_provider_clicked(self, provider_val: str | None) -> None:
@@ -212,6 +217,11 @@ class FilterBar(QWidget):
 
     def set_category(self, category: str | None) -> None:
         """Programmatically select category filter."""
+        curated_names = {"interface", "code", "header", "prose", "display", "handwriting"}
+        if category and category.lower() in curated_names:
+            self.set_curated_category(category)
+            return
+
         self._active_category = category
         self._active_curated_category = None
 
@@ -234,7 +244,25 @@ class FilterBar(QWidget):
 
     def set_curated_category(self, curated_category: str | None) -> None:
         """Programmatically apply curated category filter."""
-        self.set_category(curated_category)
+        self._active_curated_category = curated_category
+        self._active_category = None
+
+        matched = False
+        if curated_category:
+            clean_cat = curated_category.strip().lower()
+            for btn in self._category_buttons:
+                for label, val in CATEGORIES:
+                    if (label.lower() == clean_cat or (val and val.lower() == clean_cat)) and btn.text().lower() == label.lower():
+                        btn.setChecked(True)
+                        matched = True
+                        break
+                if matched:
+                    break
+
+        if not matched and self._category_buttons:
+            self._category_buttons[0].setChecked(True)
+
+        self._emit_filter_changed()
 
     def set_provider(self, provider: str | None) -> None:
         """Programmatically select provider filter."""

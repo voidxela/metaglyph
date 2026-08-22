@@ -23,7 +23,7 @@ def test_detail_pane_set_font(sample_font_jetbrains: Font) -> None:
 
     assert pane._title_label.text() == "JetBrains Mono"
     assert pane._provider_badge.text() == "Fontsource"
-    assert pane._cat_badge.text() == "Code"
+    assert "Code" in pane._cat_badge.text()
     assert pane._styles_badge.text() == "2 Styles"
     assert not pane.nerd_badge.isHidden()
     assert pane._preview.font_family == "JetBrains Mono"

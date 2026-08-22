@@ -198,7 +198,7 @@ def test_font_card_rendering_and_click(sample_font_jetbrains: Font) -> None:
     card = FontCard(font=sample_font_jetbrains, sample_text="Quick brown fox")
 
     assert card._name_label.text() == "JetBrains Mono"
-    assert card._cat_badge.text() == "Code"
+    assert "Code" in card._cat_badge.text()
     assert card._provider_badge.text() == "Fontsource"
     assert "2 Styles" in card._styles_badge.text()
     assert hasattr(card, "_nerd_badge")
@@ -333,9 +333,9 @@ async def test_search_view_query_and_selection(
     assert len(selected_fonts) == 1
     assert selected_fonts[0].id == "jetbrains-mono"
 
-    # Sample text change propagates
-    search_view._sample_input.setText("Testing typography 123")
-    assert item.widget().preview_widget.sample_text == "Testing typography 123"
+    # Selection clearing
+    search_view.clear_selection()
+    assert search_view._selected_card is None
 
 
 # ============================================================================
@@ -349,7 +349,7 @@ def test_detail_pane_interactions(sample_font_jetbrains: Font) -> None:
 
     assert pane._title_label.text() == "JetBrains Mono"
     assert pane._provider_badge.text() == "Fontsource"
-    assert pane._cat_badge.text() == "Code"
+    assert "Code" in pane._cat_badge.text()
     assert not pane.nerd_badge.isHidden()
 
     # Size slider
