@@ -22,11 +22,7 @@ pip install -e ".[dev]"
 When developing backend logic, database queries, or provider integrations and visual UI rendering tests are not needed, you can run only the standard non-visual test suite:
 
 ```bash
-# Option 1: Using the pytest marker (Recommended)
 pytest -m "not visual" -v
-
-# Option 2: Ignoring the visual tests directory
-pytest --ignore=tests/visual -v
 ```
 
 ### Running All Tests (Including Visual Tests)
