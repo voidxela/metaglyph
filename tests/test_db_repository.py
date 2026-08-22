@@ -382,3 +382,17 @@ async def test_add_variants_standalone(
     assert fetched is not None
     assert len(fetched.variants) == 2
     assert any(v.style == "italic" and v.weight == 700 for v in fetched.variants)
+
+
+@pytest.mark.asyncio
+async def test_upsert_fonts_return_count(
+    repository: FontRepository,
+    sample_font_jetbrains: Font,
+    sample_font_inter: Font,
+) -> None:
+    """Verify that upsert_fonts returns exact integer count of processed fonts."""
+    empty_count = await repository.upsert_fonts([])
+    assert empty_count == 0
+
+    count = await repository.upsert_fonts([sample_font_jetbrains, sample_font_inter])
+    assert count == 2

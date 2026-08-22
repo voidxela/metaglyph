@@ -37,10 +37,14 @@ class FontRepository:
         """Upsert a single font family and its variants with priority merging."""
         await self.upsert_fonts([font])
 
-    async def upsert_fonts(self, fonts: list[Font]) -> None:
-        """Batch upsert font families and variants with priority merging."""
+    async def upsert_fonts(self, fonts: list[Font]) -> int:
+        """Batch upsert font families and variants with priority merging.
+
+        Returns:
+            Count of font families upserted.
+        """
         if not fonts:
-            return
+            return 0
 
         async with self._db.connection() as conn:
             for font in fonts:
@@ -157,6 +161,7 @@ class FontRepository:
                         )
 
             await conn.commit()
+            return len(fonts)
 
     async def add_variants(self, variants: list[FontVariant]) -> None:
         """Batch insert or update font variants."""
