@@ -324,6 +324,63 @@ async def test_link_nerd_fonts(repository: FontRepository) -> None:
 
 
 @pytest.mark.asyncio
+async def test_link_nerd_fonts_variant_priority(repository: FontRepository) -> None:
+    """Test that link_nerd_fonts deterministically prioritizes Standard over Mono and Propo."""
+    now = int(time.time())
+
+    base_font = Font(
+        id="jetbrains-mono",
+        family_name="JetBrains Mono",
+        category="monospace",
+        curated_category="Code",
+        is_variable=False,
+        has_nerd_font=False,
+        primary_provider="google",
+        last_synced_at=now,
+    )
+    # Insert in reverse priority order (Propo, then Mono, then Standard)
+    nf_propo = Font(
+        id="jetbrainsmono-nfp",
+        family_name="JetBrainsMono Nerd Font Propo",
+        category="monospace",
+        curated_category="Code",
+        is_variable=False,
+        has_nerd_font=True,
+        primary_provider="nerd_fonts",
+        last_synced_at=now,
+    )
+    nf_mono = Font(
+        id="jetbrainsmono-nfm",
+        family_name="JetBrainsMono Nerd Font Mono",
+        category="monospace",
+        curated_category="Code",
+        is_variable=False,
+        has_nerd_font=True,
+        primary_provider="nerd_fonts",
+        last_synced_at=now,
+    )
+    nf_std = Font(
+        id="jetbrainsmono-nerd-font",
+        family_name="JetBrainsMono Nerd Font",
+        category="monospace",
+        curated_category="Code",
+        is_variable=False,
+        has_nerd_font=True,
+        primary_provider="nerd_fonts",
+        last_synced_at=now,
+    )
+
+    await repository.upsert_fonts([base_font, nf_propo, nf_mono, nf_std])
+    await repository.link_nerd_fonts()
+
+    updated = await repository.get_font_by_id("jetbrains-mono")
+    assert updated is not None
+    assert updated.has_nerd_font is True
+    # Standard variant must be prioritized
+    assert updated.nerd_font_slug == "jetbrainsmono-nerd-font"
+
+
+@pytest.mark.asyncio
 async def test_file_db_persistence(
     file_db_manager: DatabaseManager, sample_font_jetbrains: Font
 ) -> None:

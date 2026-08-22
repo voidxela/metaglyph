@@ -188,20 +188,23 @@ class FontsourceProvider(BaseFontProvider):
             )
         ]
 
+        # Download up to 8 variants concurrently
+        semaphore = asyncio.Semaphore(8)
+
         async def _download_one(v: FontVariant) -> Path | None:
             clean_family = font.family_name.replace(" ", "")
             dest_filename = f"{clean_family}-{v.weight}-{v.style}.{v.file_format}"
             dest_path = target_dir / dest_filename
             try:
-                res = await client.get(v.download_url)
-                res.raise_for_status()
-                dest_path.write_bytes(res.content)
-                return dest_path
+                async with semaphore:
+                    res = await client.get(v.download_url)
+                    res.raise_for_status()
+                    dest_path.write_bytes(res.content)
+                    return dest_path
             except Exception as exc:
                 logger.warning("Failed to download variant %s: %s", v.download_url, exc)
                 return None
 
-        # Download up to 8 variants concurrently
         tasks = [_download_one(v) for v in variants_to_download]
         results = await asyncio.gather(*tasks)
 

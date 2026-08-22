@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
+import shutil
+import tempfile
 import time
 import zipfile
 from pathlib import Path
@@ -247,30 +250,42 @@ class NerdFontsProvider(BaseFontProvider):
             else f"https://github.com/ryanoasis/nerd-fonts/releases/latest/download/{font.id}.zip"
         )
 
-        response = await client.get(dl_url)
-        response.raise_for_status()
+        with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
 
-        font_bytes: bytes | None = None
-        # If the downloaded file is a zip archive
-        if response.content[:4] == b"PK\x03\x04":
-            with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-                font_files = [n for n in z.namelist() if n.lower().endswith((".ttf", ".otf"))]
-                if not font_files:
-                    raise ValueError(f"No font files in Nerd Font archive {dl_url}")
+        try:
+            async with client.stream("GET", dl_url) as resp:
+                resp.raise_for_status()
+                with tmp_path.open("wb") as f:
+                    async for chunk in resp.aiter_bytes(chunk_size=65536):
+                        f.write(chunk)
 
-                # Choose best matching variant file (e.g. Regular or Mono)
-                chosen = font_files[0]
-                for name in font_files:
-                    name_lower = name.lower()
-                    if "regular" in name_lower and not ("italic" in name_lower or "bold" in name_lower):
-                        chosen = name
-                        break
-                    elif "mono" in name_lower:
-                        chosen = name
+            font_bytes: bytes | None = None
+            with tmp_path.open("rb") as f:
+                magic = f.read(4)
 
-                font_bytes = z.read(chosen)
-        else:
-            font_bytes = response.content
+            # If the downloaded file is a zip archive
+            if magic == b"PK\x03\x04":
+                with zipfile.ZipFile(tmp_path) as z:
+                    font_files = [n for n in z.namelist() if n.lower().endswith((".ttf", ".otf"))]
+                    if not font_files:
+                        raise ValueError(f"No font files in Nerd Font archive {dl_url}")
+
+                    # Choose best matching variant file (e.g. Regular or Mono)
+                    chosen = font_files[0]
+                    for name in font_files:
+                        name_lower = name.lower()
+                        if "regular" in name_lower and not ("italic" in name_lower or "bold" in name_lower):
+                            chosen = name
+                            break
+                        elif "mono" in name_lower:
+                            chosen = name
+
+                    font_bytes = z.read(chosen)
+            else:
+                font_bytes = tmp_path.read_bytes()
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
         subsetted = await asyncio.to_thread(subset_font_bytes, font_bytes, sample_text)
         return self.cache.save_subset(
@@ -304,29 +319,42 @@ class NerdFontsProvider(BaseFontProvider):
         )
 
         logger.info("Downloading Nerd Font zip for %s from %s", font.family_name, dl_url)
-        response = await client.get(dl_url)
-        response.raise_for_status()
+
+        with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
 
         saved_files: list[Path] = []
-        if response.content[:4] == b"PK\x03\x04":
-            with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-                for item in z.infolist():
-                    filename = Path(item.filename).name
-                    if not filename.lower().endswith((".ttf", ".otf")) or filename.startswith("."):
-                        continue
+        try:
+            async with client.stream("GET", dl_url) as resp:
+                resp.raise_for_status()
+                with tmp_path.open("wb") as f:
+                    async for chunk in resp.aiter_bytes(chunk_size=65536):
+                        f.write(chunk)
 
-                    # Apply variant filter if specified
-                    if variant_filter and not matches_nerd_font_variant(filename, variant_filter):
-                        continue
+            with tmp_path.open("rb") as f:
+                magic = f.read(4)
 
-                    target_file = target_dir / filename
-                    target_file.write_bytes(z.read(item.filename))
-                    saved_files.append(target_file)
-        else:
-            # Single font file response
-            target_file = target_dir / f"{font.id}.ttf"
-            target_file.write_bytes(response.content)
-            saved_files.append(target_file)
+            if magic == b"PK\x03\x04":
+                with zipfile.ZipFile(tmp_path) as z:
+                    for item in z.infolist():
+                        filename = Path(item.filename).name
+                        if not filename.lower().endswith((".ttf", ".otf")) or filename.startswith("."):
+                            continue
+
+                        # Apply variant filter if specified
+                        if variant_filter and not matches_nerd_font_variant(filename, variant_filter):
+                            continue
+
+                        target_file = target_dir / filename
+                        target_file.write_bytes(z.read(item.filename))
+                        saved_files.append(target_file)
+            else:
+                # Single font file response
+                target_file = target_dir / f"{font.id}.ttf"
+                shutil.copyfile(tmp_path, target_file)
+                saved_files.append(target_file)
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
         logger.info("Extracted %d Nerd Font files for %s to %s", len(saved_files), font.family_name, target_dir)
         return saved_files

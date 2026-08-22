@@ -47,39 +47,48 @@ class FontRepository:
             return 0
 
         async with self._db.connection() as conn:
-            for font in fonts:
-                # Ensure curated category is set
-                curated = font.curated_category or curate_category(font.category, font.family_name)
-
-                # Check for existing record
+            # Batch fetch existing records
+            font_ids = [f.id for f in fonts]
+            existing_map: dict[str, Any] = {}
+            chunk_size = 500
+            for i in range(0, len(font_ids), chunk_size):
+                chunk = font_ids[i : i + chunk_size]
+                placeholders = ",".join("?" * len(chunk))
                 cursor = await conn.execute(
-                    "SELECT primary_provider, is_variable, has_nerd_font, nerd_font_slug FROM fonts WHERE id = ?",
-                    (font.id,),
+                    f"SELECT id, primary_provider, is_variable, has_nerd_font, nerd_font_slug FROM fonts WHERE id IN ({placeholders})",
+                    tuple(chunk),
                 )
-                existing = await cursor.fetchone()
+                rows = await cursor.fetchall()
+                for row in rows:
+                    existing_map[row["id"]] = dict(row)
+
+            insert_font_params = []
+            update_replace_params = []
+            update_retain_params = []
+            variant_params = []
+
+            for font in fonts:
+                curated = font.curated_category or curate_category(font.category, font.family_name)
+                existing = existing_map.get(font.id)
 
                 if existing is None:
-                    # New font insertion
-                    await conn.execute(
-                        """
-                        INSERT INTO fonts (
-                            id, family_name, category, curated_category,
-                            is_variable, has_nerd_font, nerd_font_slug,
-                            primary_provider, last_synced_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            font.id,
-                            font.family_name,
-                            font.category,
-                            curated,
-                            1 if font.is_variable else 0,
-                            1 if font.has_nerd_font else 0,
-                            font.nerd_font_slug,
-                            font.primary_provider,
-                            font.last_synced_at,
-                        ),
-                    )
+                    insert_font_params.append((
+                        font.id,
+                        font.family_name,
+                        font.category,
+                        curated,
+                        1 if font.is_variable else 0,
+                        1 if font.has_nerd_font else 0,
+                        font.nerd_font_slug,
+                        font.primary_provider,
+                        font.last_synced_at,
+                    ))
+                    existing_map[font.id] = {
+                        "primary_provider": font.primary_provider,
+                        "is_variable": 1 if font.is_variable else 0,
+                        "has_nerd_font": 1 if font.has_nerd_font else 0,
+                        "nerd_font_slug": font.nerd_font_slug,
+                    }
                 else:
                     existing_provider = existing["primary_provider"]
                     is_var = bool(existing["is_variable"] or font.is_variable)
@@ -87,90 +96,92 @@ class FontRepository:
                     nf_slug = font.nerd_font_slug or existing["nerd_font_slug"]
 
                     if should_replace_primary_provider(existing_provider, font.primary_provider):
-                        # New provider has higher priority
-                        await conn.execute(
-                            """
-                            UPDATE fonts SET
-                                family_name = ?,
-                                category = ?,
-                                curated_category = ?,
-                                is_variable = ?,
-                                has_nerd_font = ?,
-                                nerd_font_slug = ?,
-                                primary_provider = ?,
-                                last_synced_at = ?
-                            WHERE id = ?
-                            """,
-                            (
-                                font.family_name,
-                                font.category,
-                                curated,
-                                1 if is_var else 0,
-                                1 if has_nf else 0,
-                                nf_slug,
-                                font.primary_provider,
-                                font.last_synced_at,
-                                font.id,
-                            ),
-                        )
+                        update_replace_params.append((
+                            font.family_name,
+                            font.category,
+                            curated,
+                            1 if is_var else 0,
+                            1 if has_nf else 0,
+                            nf_slug,
+                            font.primary_provider,
+                            font.last_synced_at,
+                            font.id,
+                        ))
+                        existing_map[font.id] = {
+                            "primary_provider": font.primary_provider,
+                            "is_variable": 1 if is_var else 0,
+                            "has_nerd_font": 1 if has_nf else 0,
+                            "nerd_font_slug": nf_slug,
+                        }
                     else:
-                        # Existing provider retained
-                        await conn.execute(
-                            """
-                            UPDATE fonts SET
-                                is_variable = ?,
-                                has_nerd_font = ?,
-                                nerd_font_slug = ?,
-                                last_synced_at = ?
-                            WHERE id = ?
-                            """,
-                            (
-                                1 if is_var else 0,
-                                1 if has_nf else 0,
-                                nf_slug,
-                                font.last_synced_at,
-                                font.id,
-                            ),
-                        )
+                        update_retain_params.append((
+                            1 if is_var else 0,
+                            1 if has_nf else 0,
+                            nf_slug,
+                            font.last_synced_at,
+                            font.id,
+                        ))
+                        existing_map[font.id]["is_variable"] = 1 if is_var else 0
+                        existing_map[font.id]["has_nerd_font"] = 1 if has_nf else 0
+                        existing_map[font.id]["nerd_font_slug"] = nf_slug
 
-                # Upsert variants
                 if font.variants:
                     for v in font.variants:
-                        await conn.execute(
-                            """
-                            INSERT INTO font_variants (
-                                font_id, provider, style, weight,
-                                file_format, download_url, subset_url, filesize
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                            ON CONFLICT(font_id, provider, style, weight) DO UPDATE SET
-                                file_format = excluded.file_format,
-                                download_url = excluded.download_url,
-                                subset_url = excluded.subset_url,
-                                filesize = excluded.filesize
-                            """,
-                            (
-                                font.id,
-                                v.provider,
-                                v.style,
-                                v.weight,
-                                v.file_format,
-                                v.download_url,
-                                v.subset_url,
-                                v.filesize,
-                            ),
-                        )
+                        variant_params.append((
+                            font.id,
+                            v.provider,
+                            v.style,
+                            v.weight,
+                            v.file_format,
+                            v.download_url,
+                            v.subset_url,
+                            v.filesize,
+                        ))
 
-            await conn.commit()
-            return len(fonts)
+            if insert_font_params:
+                await conn.executemany(
+                    """
+                    INSERT INTO fonts (
+                        id, family_name, category, curated_category,
+                        is_variable, has_nerd_font, nerd_font_slug,
+                        primary_provider, last_synced_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    insert_font_params,
+                )
 
-    async def add_variants(self, variants: list[FontVariant]) -> None:
-        """Batch insert or update font variants."""
-        if not variants:
-            return
+            if update_replace_params:
+                await conn.executemany(
+                    """
+                    UPDATE fonts SET
+                        family_name = ?,
+                        category = ?,
+                        curated_category = ?,
+                        is_variable = ?,
+                        has_nerd_font = ?,
+                        nerd_font_slug = ?,
+                        primary_provider = ?,
+                        last_synced_at = ?
+                    WHERE id = ?
+                    """,
+                    update_replace_params,
+                )
 
-        async with self._db.connection() as conn:
-            for v in variants:
-                await conn.execute(
+            if update_retain_params:
+                await conn.executemany(
+                    """
+                    UPDATE fonts SET
+                        is_variable = ?,
+                        has_nerd_font = ?,
+                        nerd_font_slug = ?,
+                        last_synced_at = ?
+                    WHERE id = ?
+                    """,
+                    update_retain_params,
+                )
+
+            if variant_params:
+                await conn.executemany(
                     """
                     INSERT INTO font_variants (
                         font_id, provider, style, weight,
@@ -182,17 +193,46 @@ class FontRepository:
                         subset_url = excluded.subset_url,
                         filesize = excluded.filesize
                     """,
-                    (
-                        v.font_id,
-                        v.provider,
-                        v.style,
-                        v.weight,
-                        v.file_format,
-                        v.download_url,
-                        v.subset_url,
-                        v.filesize,
-                    ),
+                    variant_params,
                 )
+
+            await conn.commit()
+            return len(fonts)
+
+    async def add_variants(self, variants: list[FontVariant]) -> None:
+        """Batch insert or update font variants."""
+        if not variants:
+            return
+
+        variant_params = [
+            (
+                v.font_id,
+                v.provider,
+                v.style,
+                v.weight,
+                v.file_format,
+                v.download_url,
+                v.subset_url,
+                v.filesize,
+            )
+            for v in variants
+        ]
+
+        async with self._db.connection() as conn:
+            await conn.executemany(
+                """
+                INSERT INTO font_variants (
+                    font_id, provider, style, weight,
+                    file_format, download_url, subset_url, filesize
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(font_id, provider, style, weight) DO UPDATE SET
+                    file_format = excluded.file_format,
+                    download_url = excluded.download_url,
+                    subset_url = excluded.subset_url,
+                    filesize = excluded.filesize
+                """,
+                variant_params,
+            )
             await conn.commit()
 
     async def get_font(self, font_id: str) -> Font | None:
@@ -564,23 +604,31 @@ class FontRepository:
             )
             nf_rows = await cursor.fetchall()
 
+            # Group candidate links by base_slug
+            # Priority: Standard (0) > Mono (1) > Propo (2)
+            variant_priority = {"Standard": 0, "Mono": 1, "Propo": 2}
+            best_links: dict[str, tuple[str, int]] = {}
+
             for row in nf_rows:
                 nf_slug = row["id"]
-                base_slug, _ = extract_nerd_font_counterpart(row["family_name"])
-
+                base_slug, variant = extract_nerd_font_counterpart(row["family_name"])
                 if base_slug != nf_slug:
-                    # Update base font to point to this nerd font slug
-                    update_cursor = await conn.execute(
-                        """
-                        UPDATE fonts SET
-                            has_nerd_font = 1,
-                            nerd_font_slug = ?
-                        WHERE id = ? AND id != ?
-                        """,
-                        (nf_slug, base_slug, nf_slug),
-                    )
-                    if update_cursor.rowcount > 0:
-                        linked_count += update_cursor.rowcount
+                    prio = variant_priority.get(variant, 9)
+                    if base_slug not in best_links or prio < best_links[base_slug][1]:
+                        best_links[base_slug] = (nf_slug, prio)
+
+            for base_slug, (nf_slug, _) in best_links.items():
+                update_cursor = await conn.execute(
+                    """
+                    UPDATE fonts SET
+                        has_nerd_font = 1,
+                        nerd_font_slug = ?
+                    WHERE id = ? AND id != ?
+                    """,
+                    (nf_slug, base_slug, nf_slug),
+                )
+                if update_cursor.rowcount > 0:
+                    linked_count += update_cursor.rowcount
 
             await conn.commit()
         return linked_count
