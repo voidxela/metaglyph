@@ -20,11 +20,15 @@ from metaglyph.db.models import FontFilter
 
 CATEGORIES = [
     ("All", None),
+    ("Interface", "Interface"),
+    ("Code", "Code"),
+    ("Header", "Header"),
+    ("Prose", "Prose"),
+    ("Display", "Display"),
+    ("Handwriting", "Handwriting"),
     ("Sans-Serif", "sans-serif"),
     ("Serif", "serif"),
     ("Monospace", "monospace"),
-    ("Display", "display"),
-    ("Handwriting", "handwriting"),
 ]
 
 PROVIDERS = [
@@ -211,22 +215,26 @@ class FilterBar(QWidget):
         self._active_category = category
         self._active_curated_category = None
 
-        for btn in self._category_buttons:
-            for label, val in CATEGORIES:
-                if val == category and btn.text() == label:
-                    btn.setChecked(True)
+        matched = False
+        if category:
+            clean_cat = category.strip().lower()
+            for btn in self._category_buttons:
+                for label, val in CATEGORIES:
+                    if val and (val.lower() == clean_cat or label.lower() == clean_cat) and btn.text().lower() == label.lower():
+                        btn.setChecked(True)
+                        matched = True
+                        break
+                if matched:
                     break
+
+        if not matched and self._category_buttons:
+            self._category_buttons[0].setChecked(True)
+
         self._emit_filter_changed()
 
     def set_curated_category(self, curated_category: str | None) -> None:
         """Programmatically apply curated category filter."""
-        self._active_curated_category = curated_category
-        self._active_category = None
-
-        if self._category_buttons:
-            self._category_buttons[0].setChecked(True)
-
-        self._emit_filter_changed()
+        self.set_category(curated_category)
 
     def set_provider(self, provider: str | None) -> None:
         """Programmatically select provider filter."""

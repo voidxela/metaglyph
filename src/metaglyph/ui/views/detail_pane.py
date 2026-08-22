@@ -328,8 +328,18 @@ class DetailPane(QFrame):
         self._subtitle_label.setText(f"Provided via {prov}")
         self._provider_badge.setText(prov)
 
-        cat = (font.curated_category or font.category).title()
-        self._cat_badge.setText(cat)
+        cats = []
+        raw_cat = (font.category or "").strip()
+        raw_display = "Sans-Serif" if raw_cat.lower() in ("sans-serif", "sans_serif", "sansserif") else raw_cat.title()
+        if raw_display:
+            cats.append(raw_display)
+
+        curated = font.curated_category.strip().title() if font.curated_category else None
+        if curated and curated.lower() != raw_display.lower() and curated not in cats:
+            cats.append(curated)
+
+        cat_display = " • ".join(cats) if cats else "Sans-Serif"
+        self._cat_badge.setText(cat_display)
 
         styles_count = len(font.variants) if font.variants else 1
         self._styles_badge.setText(f"{styles_count} {'Style' if styles_count == 1 else 'Styles'}")

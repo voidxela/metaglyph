@@ -288,13 +288,14 @@ class FontRepository:
             )
 
     async def get_font_by_slug_or_family(self, identifier: str) -> Font | None:
-        """Retrieve font by slug ID or family name (case-insensitive)."""
+        """Retrieve font by slug ID, family name, or nerd_font_slug counterpart."""
         slug = normalize_family_name(identifier)
         font = await self.get_font_by_id(slug)
         if font is not None:
             return font
 
         async with self._db.connection() as conn:
+            # 1. Exact or case-insensitive family_name match
             cursor = await conn.execute(
                 "SELECT id FROM fonts WHERE LOWER(family_name) = LOWER(?) LIMIT 1",
                 (identifier,),
@@ -302,6 +303,25 @@ class FontRepository:
             row = await cursor.fetchone()
             if row:
                 return await self.get_font_by_id(row["id"])
+
+            # 2. Check if a font links to this identifier/slug as its counterpart
+            cursor = await conn.execute(
+                "SELECT id FROM fonts WHERE nerd_font_slug = ? OR nerd_font_slug = ? LIMIT 1",
+                (identifier, slug),
+            )
+            row = await cursor.fetchone()
+            if row:
+                return await self.get_font_by_id(row["id"])
+
+            # 3. Normalized slug pattern match
+            cursor = await conn.execute(
+                "SELECT id FROM fonts WHERE id LIKE ? OR REPLACE(LOWER(family_name), ' ', '-') LIKE ? LIMIT 1",
+                (f"{slug}%", f"{slug}%"),
+            )
+            row = await cursor.fetchone()
+            if row:
+                return await self.get_font_by_id(row["id"])
+
         return None
 
     async def search_fonts(self, filter_params: FontFilter) -> tuple[list[Font], int]:
@@ -315,14 +335,20 @@ class FontRepository:
             params.extend([clean_q, clean_q])
 
         if filter_params.categories:
-            placeholders = ",".join("?" for _ in filter_params.categories)
-            where_clauses.append(f"category IN ({placeholders})")
-            params.extend(filter_params.categories)
+            cat_clauses = []
+            for cat in filter_params.categories:
+                clean_c = cat.strip().lower()
+                cat_clauses.append("(LOWER(category) = ? OR LOWER(curated_category) = ?)")
+                params.extend([clean_c, clean_c])
+            where_clauses.append(f"({' OR '.join(cat_clauses)})")
 
         if filter_params.curated_categories:
-            placeholders = ",".join("?" for _ in filter_params.curated_categories)
-            where_clauses.append(f"curated_category IN ({placeholders})")
-            params.extend(filter_params.curated_categories)
+            cat_clauses = []
+            for cat in filter_params.curated_categories:
+                clean_c = cat.strip().lower()
+                cat_clauses.append("(LOWER(curated_category) = ? OR LOWER(category) = ?)")
+                params.extend([clean_c, clean_c])
+            where_clauses.append(f"({' OR '.join(cat_clauses)})")
 
         if filter_params.providers:
             placeholders = ",".join("?" for _ in filter_params.providers)

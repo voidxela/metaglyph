@@ -83,6 +83,62 @@ def is_nerd_font(name: str) -> bool:
     return False
 
 
+NERD_TO_STANDARD_SLUG_MAP: dict[str, str] = {
+    "sauce-code-pro": "source-code-pro",
+    "saucecodepro": "source-code-pro",
+    "caskaydia-cove": "cascadia-code",
+    "caskaydiacove": "cascadia-code",
+    "caskaydia-mono": "cascadia-mono",
+    "caskaydiamono": "cascadia-mono",
+    "literation-mono": "liberation-mono",
+    "literationmono": "liberation-mono",
+    "blex-mono": "ibm-plex-mono",
+    "blexmono": "ibm-plex-mono",
+    "hurmit": "hermit",
+    "terminess": "terminus",
+    "dejavu-sans-m": "dejavu-sans-mono",
+    "dejavusansm": "dejavu-sans-mono",
+    "droid-sans-m": "droid-sans-mono",
+    "droidsansm": "droid-sans-mono",
+    "fantasque-sans-m": "fantasque-sans-mono",
+    "fantasquesansm": "fantasque-sans-mono",
+    "hasklug": "hasklig",
+    "meslo-lg": "meslo",
+    "meslolg": "meslo",
+    "shure-tech-mono": "share-tech-mono",
+    "shuretechmono": "share-tech-mono",
+    "agave": "agave",
+    "anonymous-pro": "anonymous-pro",
+    "code-new-roman": "code-new-roman",
+    "comic-shanns-mono": "comic-shanns-mono",
+    "fira-code": "fira-code",
+    "fira-mono": "fira-mono",
+    "geist-mono": "geist-mono",
+    "go-mono": "go-mono",
+    "hack": "hack",
+    "inconsolata": "inconsolata",
+    "inconsolata-go": "inconsolata-go",
+    "inconsolata-lgc": "inconsolata-lgc",
+    "iosevka": "iosevka",
+    "iosevka-term": "iosevka-term",
+    "jetbrains-mono": "jetbrains-mono",
+    "lilex": "lilex",
+    "monofur": "monofur",
+    "monoid": "monoid",
+    "mononoki": "mononoki",
+    "m-plus": "m-plus",
+    "noto": "noto-sans",
+    "open-dyslexic": "open-dyslexic",
+    "overpass": "overpass",
+    "proggy-clean": "proggy-clean",
+    "roboto-mono": "roboto-mono",
+    "space-mono": "space-mono",
+    "ubuntu": "ubuntu",
+    "ubuntu-mono": "ubuntu-mono",
+    "victor-mono": "victor-mono",
+}
+
+
 def extract_nerd_font_counterpart(name: str) -> tuple[str, str]:
     """Parse a Nerd Font family name and return its base standard font slug and variant.
 
@@ -111,7 +167,8 @@ def extract_nerd_font_counterpart(name: str) -> tuple[str, str]:
         name,
     ).strip()
 
-    base_slug = normalize_family_name(cleaned)
+    raw_slug = normalize_family_name(cleaned)
+    base_slug = NERD_TO_STANDARD_SLUG_MAP.get(raw_slug, raw_slug)
     return base_slug, variant
 
 

@@ -70,9 +70,9 @@ class NerdFontBadge(QFrame):
         controls_layout.setContentsMargins(0, 4, 0, 0)
         controls_layout.setSpacing(8)
 
-        var_label = QLabel("Variant:", self)
-        var_label.setStyleSheet("color: #cbd5e1; font-size: 11px; font-weight: 600;")
-        controls_layout.addWidget(var_label)
+        self._var_label = QLabel("Variant:", self)
+        self._var_label.setStyleSheet("color: #cbd5e1; font-size: 11px; font-weight: 600;")
+        controls_layout.addWidget(self._var_label)
 
         self._variant_combo = QComboBox(self)
         self._variant_combo.setObjectName("nerdVariantCombo")
@@ -126,6 +126,8 @@ class NerdFontBadge(QFrame):
             self._title_label.setText("◈ Nerd Font Patched Version")
             self._desc_label.setText("Patched with Devicons, FontAwesome, Octicons & Powerline glyphs.")
             self._switch_btn.setText("Original Standard Font")
+            self._var_label.setVisible(False)
+            self._variant_combo.setVisible(False)
             self.setVisible(True)
         elif font.has_nerd_font or font.nerd_font_slug:
             # Viewing a standard font with counterpart
@@ -135,6 +137,8 @@ class NerdFontBadge(QFrame):
                 "Includes developer icons, powerline glyphs, and ligatures."
             )
             self._switch_btn.setText("Switch to Nerd Font")
+            self._var_label.setVisible(True)
+            self._variant_combo.setVisible(True)
             self.setVisible(True)
         else:
             self._counterpart_slug = None
