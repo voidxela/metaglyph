@@ -272,7 +272,7 @@ class NerdFontsProvider(BaseFontProvider):
         else:
             font_bytes = response.content
 
-        subsetted = subset_font_bytes(font_bytes, sample_text)
+        subsetted = await asyncio.to_thread(subset_font_bytes, font_bytes, sample_text)
         return self.cache.save_subset(
             font.id,
             sample_text,

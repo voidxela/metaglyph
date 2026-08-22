@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 from pathlib import Path
@@ -63,6 +64,11 @@ def subset_font_bytes(font_bytes: bytes, text: str) -> bytes:
         return font_bytes
 
 
+async def async_subset_font_bytes(font_bytes: bytes, text: str) -> bytes:
+    """Asynchronously offload font subsetting to a background thread."""
+    return await asyncio.to_thread(subset_font_bytes, font_bytes, text)
+
+
 def subset_font_file(source_path: Path, output_path: Path, text: str) -> Path:
     """Read a font file, subset it for `text`, and write to `output_path`.
 
@@ -79,3 +85,8 @@ def subset_font_file(source_path: Path, output_path: Path, text: str) -> Path:
     subset_bytes = subset_font_bytes(raw_bytes, text)
     output_path.write_bytes(subset_bytes)
     return output_path
+
+
+async def async_subset_font_file(source_path: Path, output_path: Path, text: str) -> Path:
+    """Asynchronously subset a font file in a background worker thread."""
+    return await asyncio.to_thread(subset_font_file, source_path, output_path, text)

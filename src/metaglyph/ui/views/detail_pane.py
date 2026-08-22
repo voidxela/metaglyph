@@ -97,6 +97,8 @@ class DetailPane(QFrame):
         self._font: Font | None = None
         self._installed_record: InstalledFont | None = None
         self._is_busy: bool = False
+        self._subset_task: asyncio.Task | None = None
+        self._check_installed_task: asyncio.Task | None = None
 
         self._init_ui()
 
@@ -345,14 +347,26 @@ class DetailPane(QFrame):
         self._trigger_subset_load()
         self._trigger_check_installed()
 
+    def cleanup(self) -> None:
+        """Cancel in-flight async tasks."""
+        if self._subset_task and not self._subset_task.done():
+            self._subset_task.cancel()
+            self._subset_task = None
+        if self._check_installed_task and not self._check_installed_task.done():
+            self._check_installed_task.cancel()
+            self._check_installed_task = None
+
     def _trigger_subset_load(self) -> None:
         """Trigger async subset fetch for active font variant."""
         if not self._font or not self.subset_fetcher:
             return
 
+        if self._subset_task and not self._subset_task.done():
+            self._subset_task.cancel()
+
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(self._load_subset_async())
+            self._subset_task = loop.create_task(self._load_subset_async())
         except RuntimeError:
             pass
 
@@ -393,6 +407,8 @@ class DetailPane(QFrame):
             )
             if family_name and self._font and self._font.id == font.id:
                 self._preview.set_font_family(family_name)
+        except asyncio.CancelledError:
+            pass
         except Exception as exc:
             logger.debug(
                 "Failed to fetch variant subset for %s (%d %s): %s",
@@ -403,9 +419,11 @@ class DetailPane(QFrame):
             )
 
     def _trigger_check_installed(self) -> None:
+        if self._check_installed_task and not self._check_installed_task.done():
+            self._check_installed_task.cancel()
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(self._check_installed_async())
+            self._check_installed_task = loop.create_task(self._check_installed_async())
         except RuntimeError:
             pass
 
@@ -430,6 +448,8 @@ class DetailPane(QFrame):
                 self._install_status_label.setVisible(False)
                 self._uninstall_btn.setVisible(False)
                 self._install_btn.setText("Install Font Family")
+        except asyncio.CancelledError:
+            pass
         except Exception as exc:
             logger.debug("Failed to check font installation status: %s", exc)
 

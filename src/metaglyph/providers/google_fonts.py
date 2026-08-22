@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import re
@@ -210,7 +211,7 @@ class GoogleFontsProvider(BaseFontProvider):
                     break
 
             raw_bytes = z.read(chosen)
-            subsetted = subset_font_bytes(raw_bytes, sample_text)
+            subsetted = await asyncio.to_thread(subset_font_bytes, raw_bytes, sample_text)
             return self.cache.save_subset(
                 font.id,
                 sample_text,

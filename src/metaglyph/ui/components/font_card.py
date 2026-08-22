@@ -108,10 +108,19 @@ class FontCard(QFrame):
 
         self.setLayout(main_layout)
 
+    def cleanup(self) -> None:
+        """Cancel in-flight async tasks before widget destruction."""
+        if self._fetch_task and not self._fetch_task.done():
+            self._fetch_task.cancel()
+            self._fetch_task = None
+
     def _start_subset_load(self) -> None:
         """Asynchronously trigger micro-subset fetching without blocking UI thread."""
         if not self.subset_fetcher:
             return
+
+        if self._fetch_task and not self._fetch_task.done():
+            self._fetch_task.cancel()
 
         try:
             loop = asyncio.get_running_loop()
@@ -130,6 +139,8 @@ class FontCard(QFrame):
             _, family_name = await self.subset_fetcher.get_or_fetch_subset(self.font, sample)
             if family_name:
                 self.preview_widget.set_font_family(family_name)
+        except asyncio.CancelledError:
+            pass
         except Exception as exc:
             logger.debug("Failed to load subset preview for '%s': %s", self.font.family_name, exc)
 

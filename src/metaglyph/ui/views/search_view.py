@@ -204,6 +204,8 @@ class SearchView(QWidget):
 
     def trigger_search(self, append: bool = False) -> None:
         """Asynchronously execute database query."""
+        if hasattr(self, "_search_task") and self._search_task and not self._search_task.done():
+            self._search_task.cancel()
         try:
             loop = asyncio.get_running_loop()
             self._search_task = loop.create_task(self.execute_search_async(append=append))
@@ -245,6 +247,8 @@ class SearchView(QWidget):
                     self.subset_fetcher.prefetch_subsets(fonts, self._sample_text, limit=15)
                 )
 
+        except asyncio.CancelledError:
+            pass
         except Exception as exc:
             logger.error("Search query failed: %s", exc)
             self._results_count_label.setText("Error querying catalog")
@@ -257,6 +261,8 @@ class SearchView(QWidget):
             if item and item.widget():
                 widget = item.widget()
                 if widget not in (self._empty_widget, self._load_more_btn):
+                    if hasattr(widget, "cleanup"):
+                        widget.cleanup()
                     self._cards_layout.removeWidget(widget)
                     widget.hide()
                     widget.setParent(None)

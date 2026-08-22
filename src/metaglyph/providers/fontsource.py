@@ -158,7 +158,7 @@ class FontsourceProvider(BaseFontProvider):
             font_bytes = res.content
 
         # Create micro-subset with fontTools
-        subsetted_bytes = subset_font_bytes(font_bytes, sample_text)
+        subsetted_bytes = await asyncio.to_thread(subset_font_bytes, font_bytes, sample_text)
         return self.cache.save_subset(
             font.id,
             sample_text,
