@@ -158,12 +158,12 @@ async def test_system_view_card_details_toggle(
     assert "Provider: fontsource" in details_lbl.text()
 
     # Expand card
-    card.set_expanded(True)
+    card.set_expanded(True, animated=False)
     assert not card.details_box.isHidden()
     assert card.is_expanded() is True
 
     # Collapse card
-    card.set_expanded(False)
+    card.set_expanded(False, animated=False)
     assert card.details_box.isHidden()
     assert card.is_expanded() is False
 
@@ -553,5 +553,51 @@ async def test_system_view_expand_and_collapse_all_actions(
     view.collapse_all_families(animated=False)
     assert all(fam._is_collapsed for fam in view._family_widgets)
     assert all(fam.cards_container.isHidden() for fam in view._family_widgets)
+
+
+@pytest.mark.asyncio
+async def test_system_family_widget_header_click_toggle() -> None:
+    """Verify clicking anywhere on the header frame (including title label) toggles family group collapse/expand."""
+    from metaglyph.ui.views.system_view import SystemFontFamilyWidget
+
+    fam = SystemFontFamilyWidget(family_name="Ubuntu", initially_collapsed=True)
+    fam.show()
+    assert fam._is_collapsed is True
+    assert fam.cards_container.isHidden()
+
+    # Click on header frame
+    QTest.mouseClick(fam.header_frame, Qt.MouseButton.LeftButton)
+    assert fam._is_collapsed is False
+
+    # Click on header frame again
+    QTest.mouseClick(fam.header_frame, Qt.MouseButton.LeftButton)
+    assert fam._is_collapsed is True
+
+
+@pytest.mark.asyncio
+async def test_system_font_item_widget_animated_expansion() -> None:
+    """Verify SystemFontItemWidget animation properties and drawer transitions."""
+    inst = InstalledFont(
+        font_id="ubuntu-mono",
+        family_name="Ubuntu Mono",
+        provider="fontsource",
+        install_scope="User",
+        installed_at=1700000000,
+        file_paths=["/path/to/UbuntuMono.ttf"],
+    )
+
+    card = SystemFontItemWidget(item=inst, style_name="Regular", is_managed=True)
+    assert card.details_box.isHidden()
+    assert card._details_anim.duration() == 200
+
+    # Animated expansion
+    card.set_expanded(True, animated=True)
+    assert card.is_expanded() is True
+    assert not card.details_box.isHidden()
+
+    # Animated collapse
+    card.set_expanded(False, animated=True)
+    assert card.is_expanded() is False
+
 
 

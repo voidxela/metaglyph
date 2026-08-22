@@ -6,7 +6,7 @@ import asyncio
 import datetime
 import logging
 from pathlib import Path
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, Qt, Signal
+from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, Qt, Signal
 from PySide6.QtGui import QClipboard, QFontDatabase, QMouseEvent
 from PySide6.QtWidgets import (
     QApplication,
@@ -111,6 +111,10 @@ class SystemFontItemWidget(QFrame):
         self._is_expanded: bool = False
 
         self._init_ui()
+        self._details_anim = QPropertyAnimation(self.details_box, b"maximumHeight", self)
+        self._details_anim.setDuration(200)
+        self._details_anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self._details_anim.finished.connect(self._on_details_anim_finished)
 
     def _init_ui(self) -> None:
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -132,6 +136,7 @@ class SystemFontItemWidget(QFrame):
         # 2. Font Display Title (Family — Variant)
         display_name = f"{self.family_name} — {self.style_name}"
         self.name_label = QLabel(display_name, self)
+        self.name_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.name_label.setStyleSheet("font-size: 13px; font-weight: 600; color: #f8fafc;")
         row_layout.addWidget(self.name_label)
 
@@ -143,6 +148,7 @@ class SystemFontItemWidget(QFrame):
         else:
             sub_text = Path(self.file_path).name if self.file_path else ""
         self.sub_label = QLabel(sub_text, self)
+        self.sub_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.sub_label.setStyleSheet("color: #64748b; font-size: 11px;")
         row_layout.addWidget(self.sub_label)
 
@@ -152,6 +158,7 @@ class SystemFontItemWidget(QFrame):
         fmt = Path(self.file_path).suffix.lstrip(".").upper() if self.file_path else "TTF"
         if fmt:
             format_badge = QLabel(fmt, self)
+            format_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
             format_badge.setStyleSheet(
                 "background-color: #1e2230; color: #94a3b8; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 3px;"
             )
@@ -160,6 +167,7 @@ class SystemFontItemWidget(QFrame):
         # 4. Scope Badge
         scope = self.item.install_scope if isinstance(self.item, InstalledFont) else getattr(self.item, "scope", "System")
         scope_badge = QLabel(scope, self)
+        scope_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         scope_color = "#38bdf8" if scope == "User" else "#f59e0b"
         scope_badge.setStyleSheet(
             f"background-color: #1c2438; color: {scope_color}; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;"
@@ -169,6 +177,7 @@ class SystemFontItemWidget(QFrame):
         # 5. Managed Badge
         if self.is_managed:
             mgmt_badge = QLabel("Managed", self)
+            mgmt_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
             mgmt_badge.setStyleSheet(
                 "background-color: #064e3b; color: #34d399; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;"
             )
@@ -257,6 +266,7 @@ class SystemFontItemWidget(QFrame):
 
         main_layout.addWidget(self.details_box)
         self.details_box.setVisible(False)
+        self.details_box.setMaximumHeight(0)
 
         self.setLayout(main_layout)
 
@@ -270,6 +280,7 @@ class SystemFontItemWidget(QFrame):
                 not self.details_box.isVisible() or not self.details_box.geometry().contains(pt)
             ):
                 self.expand_requested.emit(self)
+                return
         super().mousePressEvent(event)
 
     def is_selected(self) -> bool:
@@ -281,20 +292,52 @@ class SystemFontItemWidget(QFrame):
     def is_expanded(self) -> bool:
         return self._is_expanded
 
-    def set_expanded(self, expanded: bool) -> None:
+    def _on_details_anim_finished(self) -> None:
+        if not self._is_expanded:
+            self.details_box.setVisible(False)
+        else:
+            self.details_box.setMaximumHeight(16777215)
+
+    def set_expanded(self, expanded: bool, animated: bool = True) -> None:
         if self._is_expanded == expanded:
             return
         self._is_expanded = expanded
-        self.details_box.setVisible(expanded)
         self.setProperty("selected", expanded)
         self.style().unpolish(self)
         self.style().polish(self)
+
+        if not animated:
+            self._details_anim.stop()
+            if expanded:
+                self.details_box.setVisible(True)
+                self.details_box.setMaximumHeight(16777215)
+            else:
+                self.details_box.setMaximumHeight(0)
+                self.details_box.setVisible(False)
+            return
+
+        self._details_anim.stop()
+        if expanded:
+            self.details_box.setVisible(True)
+            self.details_box.setMaximumHeight(16777215)
+            target_h = self.details_box.layout().sizeHint().height()
+            start_h = self.details_box.height() if self.details_box.isVisible() else 0
+            self.details_box.setMaximumHeight(start_h)
+            self._details_anim.setStartValue(start_h)
+            self._details_anim.setEndValue(target_h)
+            self._details_anim.start()
+        else:
+            start_h = self.details_box.height()
+            self.details_box.setMaximumHeight(start_h)
+            self._details_anim.setStartValue(start_h)
+            self._details_anim.setEndValue(0)
+            self._details_anim.start()
 
     def toggle_expand(self) -> None:
         self.expand_requested.emit(self)
 
     def set_row_selected(self, selected: bool) -> None:
-        self.set_expanded(selected)
+        self.set_expanded(selected, animated=False)
 
     def _on_toggled(self, checked: bool) -> None:
         self.selection_changed.emit(self.item, checked)
@@ -317,6 +360,21 @@ class SystemFontItemWidget(QFrame):
 
     def _on_uninstall_clicked(self) -> None:
         self.uninstall_requested.emit(self.item)
+
+
+class SystemFontFamilyHeader(QFrame):
+    """Header row frame for SystemFontFamilyWidget."""
+
+    header_clicked = Signal()
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            pt = event.position().toPoint()
+            child = self.childAt(pt)
+            if not isinstance(child, QCheckBox):
+                self.header_clicked.emit()
+                return
+        super().mousePressEvent(event)
 
 
 class SystemFontFamilyWidget(QFrame):
@@ -350,15 +408,16 @@ class SystemFontFamilyWidget(QFrame):
         main_layout.setSpacing(0)
 
         # Header Frame
-        self.header_frame = QFrame(self)
+        self.header_frame = SystemFontFamilyHeader(self)
         self.header_frame.setObjectName("systemFontFamilyHeader")
         self.header_frame.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.header_frame.mousePressEvent = self._on_header_mouse_press
+        self.header_frame.header_clicked.connect(self._on_header_clicked)
         header_layout = QHBoxLayout(self.header_frame)
         header_layout.setContentsMargins(12, 8, 12, 8)
         header_layout.setSpacing(8)
 
         self.chevron_label = QLabel("▶" if self._is_collapsed else "▼", self.header_frame)
+        self.chevron_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.chevron_label.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 700;")
         header_layout.addWidget(self.chevron_label)
 
@@ -368,10 +427,12 @@ class SystemFontFamilyWidget(QFrame):
         header_layout.addWidget(self.family_checkbox)
 
         self.title_label = QLabel(self.family_name, self.header_frame)
+        self.title_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.title_label.setStyleSheet("font-size: 14px; font-weight: 700; color: #f8fafc;")
         header_layout.addWidget(self.title_label)
 
         self.count_badge = QLabel("0 variants", self.header_frame)
+        self.count_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.count_badge.setStyleSheet(
             "background-color: #22222e; color: #94a3b8; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px;"
         )
@@ -394,20 +455,8 @@ class SystemFontFamilyWidget(QFrame):
 
         self.setLayout(main_layout)
 
-    def _on_header_mouse_press(self, event: QMouseEvent) -> None:
-        pt = event.position().toPoint()
-        child = self.header_frame.childAt(pt)
-        if child != self.family_checkbox:
-            self.set_collapsed(not self._is_collapsed)
-        QFrame.mousePressEvent(self.header_frame, event)
-
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        pt = event.position().toPoint()
-        child = self.childAt(pt)
-        if child not in (self.family_checkbox,):
-            if self.header_frame.geometry().contains(pt) or self.header_frame.isAncestorOf(child) or child == self.header_frame:
-                self.set_collapsed(not self._is_collapsed)
-        super().mousePressEvent(event)
+    def _on_header_clicked(self) -> None:
+        self.set_collapsed(not self._is_collapsed)
 
     def _on_animation_finished(self) -> None:
         if self._is_collapsed:
@@ -492,15 +541,18 @@ class SystemFontFamilyWidget(QFrame):
         scopes = {c.item.install_scope if isinstance(c.item, InstalledFont) else getattr(c.item, "scope", "System") for c in self.cards}
         if "User" in scopes:
             b = QLabel("User", self.header_frame)
+            b.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
             b.setStyleSheet("background-color: #1c2438; color: #38bdf8; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;")
             self.scope_container.addWidget(b)
         if "System" in scopes:
             b = QLabel("System", self.header_frame)
+            b.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
             b.setStyleSheet("background-color: #1c2438; color: #f59e0b; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;")
             self.scope_container.addWidget(b)
 
         if any(c.is_managed for c in self.cards):
             mb = QLabel("Managed", self.header_frame)
+            mb.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
             mb.setStyleSheet("background-color: #064e3b; color: #34d399; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;")
             self.scope_container.addWidget(mb)
 
