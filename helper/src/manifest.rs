@@ -157,6 +157,37 @@ pub fn sanitize_filename(filename: &str) -> Result<String> {
     Ok(name.to_string())
 }
 
+/// Check if a path resides within recognized standard system font directories across OSes.
+pub fn is_allowed_system_font_path(path: &Path) -> bool {
+    let allowed_prefixes = [
+        "/usr/local/share/fonts",
+        "/usr/share/fonts",
+        "/usr/share/X11/fonts",
+        "/opt/fonts",
+        "/var/lib/flatpak/exports/share/fonts",
+        "/Library/Fonts",
+        "/System/Library/Fonts",
+        "/Network/Library/Fonts",
+        r"C:\Windows\Fonts",
+    ];
+
+    let path_str = path.to_string_lossy();
+    for prefix in &allowed_prefixes {
+        if path_str.starts_with(prefix) {
+            return true;
+        }
+    }
+
+    if let Ok(sys_root) = std::env::var("SYSTEMROOT") {
+        let win_fonts = Path::new(&sys_root).join("Fonts");
+        if path.starts_with(&win_fonts) {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Validate destination path to ensure it resides within the allowed target directory and has a valid font filename.
 pub fn validate_destination_path(dest_path: &Path, target_dir: Option<&Path>) -> Result<()> {
     let filename = dest_path
@@ -203,9 +234,12 @@ pub fn validate_destination_path(dest_path: &Path, target_dir: Option<&Path>) ->
             dest_path.to_path_buf()
         };
 
-        if !canonical_dest.starts_with(&canonical_target) && !dest_path.starts_with(target) {
+        let in_target = canonical_dest.starts_with(&canonical_target) || dest_path.starts_with(target);
+        let in_system = is_allowed_system_font_path(dest_path) || is_allowed_system_font_path(&canonical_dest);
+
+        if !in_target && !in_system {
             bail!(
-                "Destination path {:?} is not confined to authorized target directory {:?}",
+                "Destination path {:?} is not confined to authorized target directory {:?} or system font directories",
                 dest_path,
                 target
             );

@@ -181,9 +181,11 @@ pub fn execute_uninstall(manifest: &Manifest) -> Result<Vec<String>> {
     for font in &manifest.fonts {
         for file_entry in &font.files {
             let dest_path = if let Some(dest_p) = &file_entry.destination_path {
-                if !dest_p.starts_with(&target_dir) {
+                let in_target = dest_p.starts_with(&target_dir);
+                let in_system = crate::manifest::is_allowed_system_font_path(dest_p);
+                if !in_target && !in_system {
                     anyhow::bail!(
-                        "Destination path {:?} is not within target directory {:?}",
+                        "Destination path {:?} is not within target directory {:?} or authorized system font directories",
                         dest_p,
                         target_dir
                     );
