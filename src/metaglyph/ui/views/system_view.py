@@ -129,23 +129,20 @@ class SystemFontItemWidget(QFrame):
         self.details_box = QFrame(self)
         self.details_box.setObjectName("systemFontDetailsBox")
         details_layout = QVBoxLayout(self.details_box)
-        details_layout.setContentsMargins(8, 8, 8, 8)
+        details_layout.setContentsMargins(12, 10, 12, 10)
         details_layout.setSpacing(4)
 
         if isinstance(self.item, InstalledFont):
-            paths_str = "\n".join(f"• {p}" for p in self.item.file_paths)
+            paths_str = "\n".join(f"  • {p}" for p in self.item.file_paths)
             d_text = (
-                f"Font ID: {self.item.font_id}\n"
-                f"Provider: {self.item.provider}\n"
-                f"Scope: {self.item.install_scope}\n"
+                f"Font ID: {self.item.font_id}   |   Provider: {self.item.provider}   |   Scope: {self.item.install_scope}\n"
                 f"Installed At: {datetime.datetime.fromtimestamp(self.item.installed_at).strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"Files:\n{paths_str}"
             )
         else:
             d_text = (
-                f"Family: {self.item.family_name}\n"
+                f"Family: {self.item.family_name}   |   Scope: {self.item.scope}\n"
                 f"PostScript: {self.item.postscript_name or 'N/A'}\n"
-                f"Scope: {self.item.scope}\n"
                 f"Path: {self.item.file_path}"
             )
 
@@ -332,10 +329,11 @@ class SystemView(QWidget):
         self._scroll_area = QScrollArea(self)
         self._scroll_area.setWidgetResizable(True)
         self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self._list_container = QWidget(self._scroll_area)
         self._list_layout = QVBoxLayout(self._list_container)
-        self._list_layout.setContentsMargins(0, 0, 8, 0)
+        self._list_layout.setContentsMargins(0, 0, 4, 0)
         self._list_layout.setSpacing(8)
 
         # Empty state label
@@ -457,12 +455,19 @@ class SystemView(QWidget):
             self._installed_fonts = installed
             self._system_fonts = system_fonts
 
-            # Clear existing cards
-            for card in self._card_widgets:
-                self._list_layout.removeWidget(card)
-                card.hide()
-                card.setParent(None)
-                card.deleteLater()
+            # Clear existing cards and spacers
+            for i in reversed(range(self._list_layout.count())):
+                item = self._list_layout.itemAt(i)
+                if item:
+                    widget = item.widget()
+                    if widget and widget != self._empty_label:
+                        self._list_layout.removeWidget(widget)
+                        widget.hide()
+                        widget.setParent(None)
+                        widget.deleteLater()
+                    elif not widget:
+                        # Spacer / stretch
+                        self._list_layout.removeItem(item)
             self._card_widgets.clear()
 
             total_items = len(installed) + (0 if self._metaglyph_only else len(system_fonts))
@@ -490,6 +495,9 @@ class SystemView(QWidget):
                     card.uninstall_requested.connect(self._on_single_uninstall_requested)
                     self._list_layout.addWidget(card)
                     self._card_widgets.append(card)
+
+            if self._card_widgets:
+                self._list_layout.addStretch(1)
 
             self._update_selection_state()
 

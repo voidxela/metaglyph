@@ -27,45 +27,45 @@ logger = logging.getLogger(__name__)
 CURATED_CATEGORY_METADATA = [
     {
         "category": "Interface",
-        "icon": "🖥️",
+        "icon": "◈",
         "title": "Interface & UI",
         "description": "Clean, highly readable sans-serif typefaces engineered for modern UI design and application workflows.",
-        "examples": ["Inter", "Roboto", "Plus Jakarta Sans", "Work Sans"],
+        "examples": ["Inter", "Roboto", "Plus Jakarta Sans"],
     },
     {
         "category": "Code",
-        "icon": "⚡",
+        "icon": "⟨/⟩",
         "title": "Code & Monospace",
         "description": "Monospaced fonts optimized for syntax clarity, coding ligatures, and developer terminal ergonomics.",
-        "examples": ["JetBrains Mono", "Fira Code", "Source Code Pro", "Hack"],
+        "examples": ["JetBrains Mono", "Fira Code", "Hack"],
     },
     {
         "category": "Header",
-        "icon": "📰",
+        "icon": "¶",
         "title": "Header & Editorial",
         "description": "Punchy, expressive display and headline fonts designed for high visual impact and titles.",
-        "examples": ["Montserrat", "Syne", "Cabinet Grotesk", "Oswald"],
+        "examples": ["Montserrat", "Syne", "Cabinet Grotesk"],
     },
     {
         "category": "Prose",
-        "icon": "📖",
+        "icon": "§",
         "title": "Prose & Reading",
         "description": "Refined serif and editorial typefaces tailored for sustained, effortless long-form reading.",
-        "examples": ["Merriweather", "Playfair Display", "Lora", "Newsreader"],
+        "examples": ["Merriweather", "Playfair Display", "Lora"],
     },
     {
         "category": "Display",
-        "icon": "🎨",
+        "icon": "★",
         "title": "Display & Creative",
         "description": "Distinctive, bold, artistic letterforms for branding, posters, creative typography, and logos.",
-        "examples": ["Bebas Neue", "Righteous", "Orbitron", "Anton"],
+        "examples": ["Bebas Neue", "Righteous", "Orbitron"],
     },
     {
         "category": "Handwriting",
-        "icon": "✍️",
+        "icon": "✎",
         "title": "Handwriting & Script",
         "description": "Organic, brush, and cursive handwritten scripts for personal, casual, or signature styles.",
-        "examples": ["Caveat", "Pacifico", "Kalam", "Dancing Script"],
+        "examples": ["Caveat", "Pacifico", "Dancing Script"],
     },
 ]
 
@@ -100,16 +100,19 @@ class CategoryCardWidget(QFrame):
         examples: list[str],
     ) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(18, 16, 18, 16)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(16, 14, 16, 14)
+        main_layout.setSpacing(8)
 
-        # Top Header: Icon, Title, and Count Badge
+        # Top Header: Icon Badge, Title, and Count Badge
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(8)
 
         icon_label = QLabel(icon, self)
         icon_label.setObjectName("categoryCardIcon")
+        icon_label.setStyleSheet(
+            "font-size: 13px; font-weight: 700; color: #818cf8; background-color: #1f2436; padding: 3px 6px; border-radius: 4px; border: 1px solid #2d344d;"
+        )
         header_layout.addWidget(icon_label)
 
         title_label = QLabel(title, self)
@@ -132,8 +135,8 @@ class CategoryCardWidget(QFrame):
 
         # Example tags row
         examples_layout = QHBoxLayout()
-        examples_layout.setContentsMargins(0, 4, 0, 0)
-        examples_layout.setSpacing(6)
+        examples_layout.setContentsMargins(0, 2, 0, 0)
+        examples_layout.setSpacing(5)
 
         ex_prefix = QLabel("Examples:", self)
         ex_prefix.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 600;")
@@ -142,7 +145,7 @@ class CategoryCardWidget(QFrame):
         for ex in examples:
             tag = QLabel(ex, self)
             tag.setStyleSheet(
-                "background-color: #22222d; color: #cbd5e1; font-size: 11px; padding: 2px 7px; border-radius: 4px; border: 1px solid #2e2e3e;"
+                "background-color: #1c202d; color: #cbd5e1; font-size: 10px; padding: 2px 6px; border-radius: 4px; border: 1px solid #282e3f;"
             )
             examples_layout.addWidget(tag)
 
@@ -191,18 +194,19 @@ class DiscoverView(QWidget):
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         container = QWidget(scroll)
         container.setObjectName("discoverContainer")
         content_layout = QVBoxLayout(container)
-        content_layout.setContentsMargins(28, 24, 28, 28)
-        content_layout.setSpacing(24)
+        content_layout.setContentsMargins(24, 20, 24, 24)
+        content_layout.setSpacing(20)
 
         # Banner / Spotlight Card
         spotlight = QFrame(container)
         spotlight.setObjectName("spotlightCard")
         spotlight_layout = QVBoxLayout(spotlight)
-        spotlight_layout.setContentsMargins(24, 20, 24, 20)
+        spotlight_layout.setContentsMargins(20, 18, 20, 18)
         spotlight_layout.setSpacing(8)
 
         spotlight_title = QLabel("Explore Beautiful Typography", spotlight)
@@ -239,13 +243,13 @@ class DiscoverView(QWidget):
 
         # Section Header
         section_label = QLabel("Curated Categories", container)
-        section_label.setStyleSheet("font-size: 16px; font-weight: 700; color: #f8fafc;")
+        section_label.setStyleSheet("font-size: 15px; font-weight: 700; color: #f8fafc;")
         content_layout.addWidget(section_label)
 
         # 2-Column Responsive Category Grid
         grid_layout = QGridLayout()
         grid_layout.setContentsMargins(0, 0, 0, 0)
-        grid_layout.setSpacing(14)
+        grid_layout.setSpacing(12)
 
         for idx, item in enumerate(CURATED_CATEGORY_METADATA):
             card = CategoryCardWidget(

@@ -34,7 +34,8 @@ def create_application() -> QApplication:
     app.setOrganizationName("Metaglyph")
     app.setApplicationVersion("0.1.0")
 
-    # Apply modern dark theme
+    # Apply modern cross-platform Fusion style and dark theme
+    app.setStyle("Fusion")
     apply_theme(app, "dark")
 
     return app

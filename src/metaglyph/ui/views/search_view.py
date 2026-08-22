@@ -103,7 +103,7 @@ class SearchView(QWidget):
         self._sample_input = QLineEdit(self._sample_text, info_bar)
         self._sample_input.setPlaceholderText("Enter custom sample text...")
         self._sample_input.setStyleSheet(
-            "background-color: #1a1a22; border: 1px solid #282834; border-radius: 6px; padding: 4px 8px; color: #f1f5f9; font-size: 12px; min-width: 260px;"
+            "background-color: #161922; border: 1px solid #282e3f; border-radius: 6px; padding: 4px 8px; color: #f1f5f9; font-size: 12px; min-width: 160px; max-width: 320px;"
         )
         self._sample_input.textChanged.connect(self._on_sample_text_changed)
         info_layout.addWidget(self._sample_input)
@@ -114,10 +114,11 @@ class SearchView(QWidget):
         self._scroll_area = QScrollArea(self)
         self._scroll_area.setWidgetResizable(True)
         self._scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self._cards_container = QWidget(self._scroll_area)
         self._cards_layout = QVBoxLayout(self._cards_container)
-        self._cards_layout.setContentsMargins(0, 0, 8, 0)
+        self._cards_layout.setContentsMargins(0, 0, 4, 0)
         self._cards_layout.setSpacing(8)
 
         # Empty / Loading State Widget

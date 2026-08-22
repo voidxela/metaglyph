@@ -68,7 +68,26 @@ class ThemeManager:
             return ""
 
     def apply_theme(self, target: QApplication | QWidget, theme_name: str = "dark") -> bool:
-        """Apply theme stylesheet to a QApplication or QWidget."""
+        """Apply theme stylesheet and palette to a QApplication or QWidget."""
+        from PySide6.QtGui import QColor, QPalette
+        from PySide6.QtWidgets import QApplication
+
+        if isinstance(target, QApplication):
+            palette = QPalette()
+            palette.setColor(QPalette.ColorRole.Window, QColor("#0f1117"))
+            palette.setColor(QPalette.ColorRole.WindowText, QColor("#f1f5f9"))
+            palette.setColor(QPalette.ColorRole.Base, QColor("#0f1117"))
+            palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#161922"))
+            palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#1c202e"))
+            palette.setColor(QPalette.ColorRole.ToolTipText, QColor("#f8fafc"))
+            palette.setColor(QPalette.ColorRole.Text, QColor("#f1f5f9"))
+            palette.setColor(QPalette.ColorRole.Button, QColor("#1c202e"))
+            palette.setColor(QPalette.ColorRole.ButtonText, QColor("#f1f5f9"))
+            palette.setColor(QPalette.ColorRole.BrightText, QColor("#ffffff"))
+            palette.setColor(QPalette.ColorRole.Highlight, QColor("#6366f1"))
+            palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
+            target.setPalette(palette)
+
         stylesheet = self.get_stylesheet(theme_name)
         if not stylesheet:
             return False

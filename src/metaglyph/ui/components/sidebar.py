@@ -62,7 +62,7 @@ class SidebarWidget(QWidget):
 
         nav_items = [
             ("✦  Discover", 0),
-            ("🔍  Search & Browse", 1),
+            ("🔍  Search && Browse", 1),
             ("💻  System Fonts", 2),
         ]
 

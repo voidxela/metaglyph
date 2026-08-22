@@ -41,7 +41,7 @@ class NerdFontBadge(QFrame):
     def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(12, 10, 12, 10)
-        main_layout.setSpacing(8)
+        main_layout.setSpacing(6)
 
         # Header Row: Icon & Title
         header_layout = QHBoxLayout()
@@ -65,12 +65,11 @@ class NerdFontBadge(QFrame):
         self._desc_label.setWordWrap(True)
         main_layout.addWidget(self._desc_label)
 
-        # Controls Row: Variant Selector & Switch Action Button
+        # Controls: Variant Selector + Switch Button
         controls_layout = QHBoxLayout()
-        controls_layout.setContentsMargins(0, 2, 0, 0)
+        controls_layout.setContentsMargins(0, 4, 0, 0)
         controls_layout.setSpacing(8)
 
-        # Variant label & combo
         var_label = QLabel("Variant:", self)
         var_label.setStyleSheet("color: #cbd5e1; font-size: 11px; font-weight: 600;")
         controls_layout.addWidget(var_label)
@@ -82,28 +81,32 @@ class NerdFontBadge(QFrame):
         self._variant_combo.setCurrentText("Standard")
         self._variant_combo.setToolTip("Select Nerd Font variant (Standard, Mono, or Propo)")
         self._variant_combo.currentTextChanged.connect(self._on_variant_changed)
-        controls_layout.addWidget(self._variant_combo)
+        controls_layout.addWidget(self._variant_combo, stretch=1)
 
-        controls_layout.addStretch(1)
-
-        # Switch button
         self._switch_btn = QPushButton("Switch to Nerd Font", self)
         self._switch_btn.setObjectName("nerdBadgeBtn")
         self._switch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._switch_btn.setStyleSheet(
-            "QPushButton { background-color: #4c1d95; color: #f5d0fe; border: 1px solid #7c3aed; padding: 5px 10px; border-radius: 5px; font-weight: 600; font-size: 11px; } "
+            "QPushButton { background-color: #4c1d95; color: #f5d0fe; border: 1px solid #7c3aed; padding: 4px 10px; border-radius: 5px; font-weight: 600; font-size: 11px; } "
             "QPushButton:hover { background-color: #5b21b6; color: #ffffff; border-color: #a855f7; }"
         )
         self._switch_btn.clicked.connect(self._on_switch_clicked)
-        controls_layout.addWidget(self._switch_btn)
+        controls_layout.addWidget(self._switch_btn, stretch=2)
 
         main_layout.addLayout(controls_layout)
         self.setLayout(main_layout)
 
-        # Frame default styling
         self.setStyleSheet(
-            "QFrame#nerdBadge { background-color: #201335; border: 1px solid #4c1d95; border-radius: 8px; }"
+            "QFrame#nerdBadge { background-color: #1c132b; border: 1px solid #3f1e68; border-radius: 8px; }"
         )
+
+    @property
+    def variant_combo(self) -> QComboBox:
+        return self._variant_combo
+
+    @property
+    def action_btn(self) -> QPushButton:
+        return self._switch_btn
 
     def set_font(self, font: Font | None) -> None:
         """Update badge state and visibility based on font properties."""
@@ -122,14 +125,14 @@ class NerdFontBadge(QFrame):
             self._counterpart_slug = base_slug
             self._title_label.setText("◈ Nerd Font Patched Version")
             self._desc_label.setText("Patched with Devicons, FontAwesome, Octicons & Powerline glyphs.")
-            self._switch_btn.setText("View Original Standard Font")
+            self._switch_btn.setText("Original Standard Font")
             self.setVisible(True)
         elif font.has_nerd_font or font.nerd_font_slug:
             # Viewing a standard font with counterpart
             self._counterpart_slug = font.nerd_font_slug or f"{font.id}-nerd-font"
             self._title_label.setText("◈ Nerd Font Counterpart Available")
             self._desc_label.setText(
-                "Includes developer icons, powerline glyphs, and coding ligatures."
+                "Includes developer icons, powerline glyphs, and ligatures."
             )
             self._switch_btn.setText("Switch to Nerd Font")
             self.setVisible(True)
