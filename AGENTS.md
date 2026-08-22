@@ -15,7 +15,12 @@ This document outlines the core architecture, data flow, and user experience req
 * **Concurrency:** The main Qt UI thread must never block. Use `asyncio` integrations (e.g., `qasync`) or `QThread`/`QRunnable` for network requests, SQLite database queries, and filesystem operations.
 * **Python Version:** Target Python 3.11+. Use modern type hinting (`str | None` instead of `Optional[str]`).
 
-## 3. Commit Guidelines
+## 3. Testing Requirements & UI Validation
+* **Testing Guide:** Detailed testing instructions are documented in **`docs/TESTING.md`**.
+* **Mandatory UI Validation:** When modifying, creating, or refactoring UI components, views, layouts, or stylesheets, you **must run the visual tests** (`pytest tests/visual -v` or `python -m tests.visual.runner`) and validate the visual rendering of all affected UI states before considering a task complete.
+* **Non-Visual Tests:** For non-UI tasks (backend, database, providers), you may run standard tests quickly with `pytest -m "not visual"`.
+
+## 4. Commit Guidelines
 You are expected to commit your work incrementally as you complete logical blocks or resolve specific tasks. 
 
 You **must** format all your commits using **subject-only Conventional Commits**. Do not generate multiline commit messages, bodies, or footers.
@@ -36,3 +41,4 @@ feat: add google fonts provider
 
 Implemented the base class and added the google fonts API parser.
 Fixes issue with the search bar.
+```

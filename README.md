@@ -139,23 +139,25 @@ Metaglyph follows standard OS directory conventions:
 
 ## 7. Running the Test Suite
 
-Metaglyph includes a comprehensive test suite covering all modules:
+Metaglyph includes a comprehensive test suite covering backend logic, database persistence, provider APIs, PySide6 UI components, and headless visual screenshot regression tests.
+
+See **[`docs/TESTING.md`](docs/TESTING.md)** for the complete testing guide and API reference.
 
 ```bash
-# Run all tests
-pytest
+# Run all tests (including visual tests in headless offscreen mode)
+pytest -v
 
-# Run concurrency stress tests
-pytest tests/test_concurrency_stress.py -v
+# Run non-visual tests only (fastest)
+pytest -m "not visual" -v
 
-# Run memory leak & lifecycle verification
-pytest tests/test_memory_leak.py -v
+# Run visual testing scenarios and generate HTML/Markdown gallery reports
+python -m tests.visual.runner --output ./visual_reports
 
-# Run resilience & error recovery tests
-pytest tests/test_resilience_edge_cases.py -v
-
-# Run end-to-end user workflow tests
+# Run targeted test suites
 pytest tests/test_e2e_integration.py -v
+pytest tests/test_concurrency_stress.py -v
+pytest tests/test_memory_leak.py -v
+pytest tests/test_resilience_edge_cases.py -v
 ```
 
 ---
