@@ -1,0 +1,128 @@
+"""Application startup, dependency container, and qasync event loop integration."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import signal
+import sys
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication
+import qasync
+
+from metaglyph.core.config import get_config
+from metaglyph.core.logging import setup_logging
+from metaglyph.db.database import DatabaseManager
+from metaglyph.db.repository import FontRepository
+from metaglyph.providers.manager import ProviderManager
+from metaglyph.subsetting.cache import SubsetCache
+from metaglyph.subsetting.fetcher import SubsetFetcher
+from metaglyph.subsetting.loader import FontLoader
+from metaglyph.ui.main_window import MainWindow
+from metaglyph.ui.theme.qss_builder import apply_theme
+
+logger = logging.getLogger("metaglyph.ui.app")
+
+
+def create_application() -> QApplication:
+    """Create or retrieve QApplication instance configured for Metaglyph."""
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)
+
+    app.setApplicationName("Metaglyph")
+    app.setOrganizationName("Metaglyph")
+    app.setApplicationVersion("0.1.0")
+
+    # Apply modern dark theme
+    apply_theme(app, "dark")
+
+    return app
+
+
+class MetaglyphApp:
+    """Application runner orchestrating GUI components, database connection, and async runtime."""
+
+    def __init__(self) -> None:
+        self.config = get_config()
+        self.config.ensure_directories()
+
+        self.db_manager = DatabaseManager(self.config.database_path)
+        self.repository = FontRepository(self.db_manager)
+        self.provider_manager = ProviderManager()
+        self.subset_cache = SubsetCache(self.config.subsets_cache_dir)
+        self.font_loader = FontLoader()
+        self.subset_fetcher = SubsetFetcher(
+            cache=self.subset_cache,
+            loader=self.font_loader,
+            provider_manager=self.provider_manager,
+        )
+
+        self.qapp: QApplication | None = None
+        self.main_window: MainWindow | None = None
+
+    async def initialize(self) -> None:
+        """Initialize database tables and schema."""
+        await self.db_manager.initialize()
+
+    def build_ui(self) -> MainWindow:
+        """Create and configure MainWindow."""
+        self.qapp = create_application()
+        self.main_window = MainWindow(
+            repository=self.repository,
+            subset_fetcher=self.subset_fetcher,
+            provider_manager=self.provider_manager,
+        )
+        return self.main_window
+
+    async def run_async(self) -> int:
+        """Run application event loop asynchronously with qasync."""
+        await self.initialize()
+
+        window = self.build_ui()
+        window.show()
+
+        # Connect application close to cleanup
+        exit_future: asyncio.Future[int] = asyncio.get_running_loop().create_future()
+
+        def on_app_exit():
+            if not exit_future.done():
+                exit_future.set_result(0)
+
+        assert self.qapp is not None
+        self.qapp.aboutToQuit.connect(on_app_exit)
+
+        try:
+            return await exit_future
+        finally:
+            await self.shutdown()
+
+    async def shutdown(self) -> None:
+        """Gracefully release database and network provider resources."""
+        try:
+            await self.provider_manager.close()
+        except Exception as exc:
+            logger.debug("Error closing provider manager: %s", exc)
+
+        try:
+            await self.db_manager.close()
+        except Exception as exc:
+            logger.debug("Error closing database manager: %s", exc)
+
+
+def run_app() -> int:
+    """Main synchronous entry point executing qasync event loop."""
+    setup_logging()
+    app_instance = MetaglyphApp()
+    qapp = create_application()
+
+    # Install SIGINT handler for graceful termination
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    try:
+        return qasync.run(app_instance.run_async())
+    except (KeyboardInterrupt, SystemExit):
+        return 0
+    except Exception as exc:
+        logger.error("Application error: %s", exc, exc_info=True)
+        return 1
