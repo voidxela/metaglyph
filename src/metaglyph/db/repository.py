@@ -190,6 +190,10 @@ class FontRepository:
                 )
             await conn.commit()
 
+    async def get_font(self, font_id: str) -> Font | None:
+        """Retrieve font family and all associated variants by ID (alias for get_font_by_id)."""
+        return await self.get_font_by_id(font_id)
+
     async def get_font_by_id(self, font_id: str) -> Font | None:
         """Retrieve font family and all associated variants by ID."""
         async with self._db.connection() as conn:
