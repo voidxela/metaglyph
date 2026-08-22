@@ -340,11 +340,11 @@ class UIDriver:
             await self.wait_for_idle(150)
 
     async def expand_system_font_details(self, family_name: str) -> bool:
-        """Click the 'Details' expander on a system font card."""
+        """Click the row header on a system font card to toggle expanded details."""
         cards = self.get_system_font_cards()
         for card in cards:
             if card.item.family_name.lower() == family_name.lower():
-                QTest.mouseClick(card.expand_btn, Qt.MouseButton.LeftButton)
+                QTest.mouseClick(card, Qt.MouseButton.LeftButton)
                 await self.wait_for_idle(100)
                 return True
         return False

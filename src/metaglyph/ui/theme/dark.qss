@@ -758,6 +758,22 @@ QToolTip {
     margin-top: 4px;
 }
 
+#systemLoadingLabel {
+    color: #818cf8;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 32px;
+    background-color: transparent;
+}
+
+#systemFontPreview {
+    background-color: #12141c;
+    border: 1px solid #1e2433;
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+}
+
 #systemFontPath {
     font-family: monospace;
     font-size: 11px;

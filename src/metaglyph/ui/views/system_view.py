@@ -6,8 +6,8 @@ import asyncio
 import datetime
 import logging
 from pathlib import Path
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QClipboard, QMouseEvent
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, Qt, Signal
+from PySide6.QtGui import QClipboard, QFontDatabase, QMouseEvent
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -27,9 +27,32 @@ from metaglyph.db.normalizer import normalize_family_name
 from metaglyph.db.repository import FontRepository
 from metaglyph.installer.detector import FontDetector, extract_font_names
 from metaglyph.installer.uninstaller import FontUninstaller
+from metaglyph.ui.components.font_preview import FontPreviewWidget
 from metaglyph.ui.components.search_bar import SearchBar
 
 logger = logging.getLogger(__name__)
+
+
+def _variant_to_qfont_weight(style_name: str) -> int:
+    """Map typography style name to standard QFont integer weight."""
+    s = style_name.lower().strip()
+    if "thin" in s or "hairline" in s:
+        return 100
+    if "extralight" in s or "extra light" in s or "ultralight" in s:
+        return 200
+    if "light" in s:
+        return 300
+    if "medium" in s:
+        return 500
+    if "semibold" in s or "semi bold" in s or "demibold" in s:
+        return 600
+    if "bold" in s:
+        return 700
+    if "extrabold" in s or "extra bold" in s or "ultrabold" in s:
+        return 800
+    if "black" in s or "heavy" in s:
+        return 900
+    return 400
 
 
 def _variant_sort_order(style_name: str) -> tuple[int, int, str]:
@@ -67,6 +90,7 @@ class SystemFontItemWidget(QFrame):
 
     selection_changed = Signal(object, bool)  # (item, is_selected)
     uninstall_requested = Signal(object)       # (InstalledFont or SystemFontCacheEntry)
+    expand_requested = Signal(object)          # (SystemFontItemWidget)
 
     def __init__(
         self,
@@ -150,17 +174,7 @@ class SystemFontItemWidget(QFrame):
             )
             row_layout.addWidget(mgmt_badge)
 
-        # 6. Expand / Details Button
-        self.expand_btn = QPushButton("Details", self)
-        self.expand_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.expand_btn.setStyleSheet(
-            "QPushButton { background-color: #252533; color: #94a3b8; border: 1px solid #333345; padding: 3px 8px; border-radius: 4px; font-size: 11px; } "
-            "QPushButton:hover { background-color: #313144; color: #f1f5f9; }"
-        )
-        self.expand_btn.clicked.connect(self._toggle_expand)
-        row_layout.addWidget(self.expand_btn)
-
-        # 7. Uninstall Button
+        # 6. Uninstall Button
         self.uninstall_btn = QPushButton("Uninstall", self)
         self.uninstall_btn.setObjectName("uninstallItemBtn")
         self.uninstall_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -178,12 +192,35 @@ class SystemFontItemWidget(QFrame):
         self.details_box.setObjectName("systemFontDetailsBox")
         details_layout = QVBoxLayout(self.details_box)
         details_layout.setContentsMargins(12, 10, 12, 10)
-        details_layout.setSpacing(6)
+        details_layout.setSpacing(8)
 
+        # Load font into Qt application font database if file exists on disk
+        if self.file_path and Path(self.file_path).exists():
+            try:
+                QFontDatabase.addApplicationFont(self.file_path)
+            except Exception:
+                pass
+
+        # Live Font Preview in Details Box
+        is_italic = "italic" in self.style_name.lower() or "oblique" in self.style_name.lower()
+        self.preview_widget = FontPreviewWidget(
+            font_family=self.family_name,
+            sample_text="The quick brown fox jumps over the lazy dog 1234567890",
+            point_size=15.0,
+            weight=_variant_to_qfont_weight(self.style_name),
+            italic=is_italic,
+            parent=self.details_box,
+        )
+        self.preview_widget.setObjectName("systemFontPreview")
+        self.preview_widget.setStyleSheet(
+            "background-color: #12141c; border: 1px solid #1e2433; border-radius: 4px; padding: 6px 10px; color: #f1f5f9;"
+        )
+        details_layout.addWidget(self.preview_widget)
+
+        # Detailed metadata (with first line removed as info is present in header)
         if isinstance(self.item, InstalledFont):
             paths_str = "\n".join(f"  • {p}" for p in self.item.file_paths)
             d_text = (
-                f"Family: {self.family_name}   |   Variant: {self.style_name}   |   Scope: {self.item.install_scope}\n"
                 f"Font ID: {self.item.font_id}   |   Provider: {self.item.provider}\n"
                 f"Installed At: {datetime.datetime.fromtimestamp(self.item.installed_at).strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"Files:\n{paths_str}"
@@ -191,7 +228,6 @@ class SystemFontItemWidget(QFrame):
         else:
             ps_name = getattr(self.item, "postscript_name", None) or "N/A"
             d_text = (
-                f"Family: {self.family_name}   |   Variant: {self.style_name}   |   Scope: {getattr(self.item, 'scope', 'System')}\n"
                 f"PostScript: {ps_name}\n"
                 f"Path: {self.file_path}"
             )
@@ -225,11 +261,15 @@ class SystemFontItemWidget(QFrame):
         self.setLayout(main_layout)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        """Clicking on row toggles selection and context details."""
+        """Clicking on row header toggles expansion."""
         if event.button() == Qt.MouseButton.LeftButton:
-            child = self.childAt(event.pos())
-            if child in (self, self.name_label, self.sub_label):
-                self._toggle_expand()
+            pt = event.position().toPoint()
+            child = self.childAt(pt)
+            interactive = (self.checkbox, self.uninstall_btn, self.copy_path_btn)
+            if child not in interactive and (
+                not self.details_box.isVisible() or not self.details_box.geometry().contains(pt)
+            ):
+                self.expand_requested.emit(self)
         super().mousePressEvent(event)
 
     def is_selected(self) -> bool:
@@ -238,20 +278,26 @@ class SystemFontItemWidget(QFrame):
     def set_selected(self, selected: bool) -> None:
         self.checkbox.setChecked(selected)
 
+    def is_expanded(self) -> bool:
+        return self._is_expanded
+
+    def set_expanded(self, expanded: bool) -> None:
+        if self._is_expanded == expanded:
+            return
+        self._is_expanded = expanded
+        self.details_box.setVisible(expanded)
+        self.setProperty("selected", expanded)
+        self.style().unpolish(self)
+        self.style().polish(self)
+
+    def toggle_expand(self) -> None:
+        self.expand_requested.emit(self)
+
     def set_row_selected(self, selected: bool) -> None:
-        if self._is_expanded != selected:
-            self._toggle_expand()
+        self.set_expanded(selected)
 
     def _on_toggled(self, checked: bool) -> None:
         self.selection_changed.emit(self.item, checked)
-
-    def _toggle_expand(self) -> None:
-        self._is_expanded = not self._is_expanded
-        self.details_box.setVisible(self._is_expanded)
-        self.expand_btn.setText("Hide" if self._is_expanded else "Details")
-        self.setProperty("selected", self._is_expanded)
-        self.style().unpolish(self)
-        self.style().polish(self)
 
     def _copy_path_to_clipboard(self) -> None:
         if self.file_path:
@@ -284,6 +330,10 @@ class SystemFontFamilyWidget(QFrame):
         self._is_collapsed: bool = False
 
         self._init_ui()
+        self._anim = QPropertyAnimation(self.cards_container, b"maximumHeight", self)
+        self._anim.setDuration(220)
+        self._anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self._anim.finished.connect(self._on_animation_finished)
 
     def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
@@ -294,6 +344,7 @@ class SystemFontFamilyWidget(QFrame):
         self.header_frame = QFrame(self)
         self.header_frame.setObjectName("systemFontFamilyHeader")
         self.header_frame.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.header_frame.mousePressEvent = self._on_header_mouse_press
         header_layout = QHBoxLayout(self.header_frame)
         header_layout.setContentsMargins(12, 8, 12, 8)
         header_layout.setSpacing(8)
@@ -334,16 +385,59 @@ class SystemFontFamilyWidget(QFrame):
 
         self.setLayout(main_layout)
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        child = self.childAt(event.pos())
-        if child not in (self.family_checkbox,):
+    def _on_header_mouse_press(self, event: QMouseEvent) -> None:
+        pt = event.position().toPoint()
+        child = self.header_frame.childAt(pt)
+        if child != self.family_checkbox:
             self.set_collapsed(not self._is_collapsed)
+        QFrame.mousePressEvent(self.header_frame, event)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        pt = event.position().toPoint()
+        child = self.childAt(pt)
+        if child not in (self.family_checkbox,):
+            if self.header_frame.geometry().contains(pt) or self.header_frame.isAncestorOf(child) or child == self.header_frame:
+                self.set_collapsed(not self._is_collapsed)
         super().mousePressEvent(event)
 
-    def set_collapsed(self, collapsed: bool) -> None:
+    def _on_animation_finished(self) -> None:
+        if self._is_collapsed:
+            self.cards_container.setVisible(False)
+        else:
+            self.cards_container.setMaximumHeight(16777215)
+
+    def set_collapsed(self, collapsed: bool, animated: bool = True) -> None:
+        if self._is_collapsed == collapsed:
+            return
         self._is_collapsed = collapsed
-        self.cards_container.setVisible(not collapsed)
         self.chevron_label.setText("▶" if collapsed else "▼")
+
+        if not animated:
+            self._anim.stop()
+            if collapsed:
+                self.cards_container.setMaximumHeight(0)
+                self.cards_container.setVisible(False)
+            else:
+                self.cards_container.setVisible(True)
+                self.cards_container.setMaximumHeight(16777215)
+            return
+
+        self._anim.stop()
+        if collapsed:
+            start_h = self.cards_container.height()
+            self.cards_container.setMaximumHeight(start_h)
+            self._anim.setStartValue(start_h)
+            self._anim.setEndValue(0)
+            self._anim.start()
+        else:
+            self.cards_container.setVisible(True)
+            self.cards_container.setMaximumHeight(16777215)
+            target_h = self.cards_layout.sizeHint().height()
+            start_h = self.cards_container.height() if self.cards_container.isVisible() else 0
+            self.cards_container.setMaximumHeight(start_h)
+            self._anim.setStartValue(start_h)
+            self._anim.setEndValue(target_h)
+            self._anim.start()
 
     def add_card(self, card: SystemFontItemWidget) -> None:
         self.cards.append(card)
@@ -430,6 +524,7 @@ class SystemView(QWidget):
         self._system_fonts: list[SystemFontCacheEntry] = []
         self._card_widgets: list[SystemFontItemWidget] = []
         self._family_widgets: list[SystemFontFamilyWidget] = []
+        self._expanded_card: SystemFontItemWidget | None = None
         self._is_scanning: bool = False
         self._is_uninstalling: bool = False
         self._has_scanned_on_open: bool = False
@@ -555,10 +650,19 @@ class SystemView(QWidget):
         self._list_layout.setContentsMargins(0, 0, 4, 0)
         self._list_layout.setSpacing(10)
 
+        # Scanning / Loading indicator label
+        self._loading_label = QLabel("Scanning system fonts...", self._list_container)
+        self._loading_label.setObjectName("systemLoadingLabel")
+        self._loading_label.setStyleSheet("color: #818cf8; font-size: 13px; font-weight: 600; padding: 32px;")
+        self._loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._loading_label.setVisible(False)
+        self._list_layout.addWidget(self._loading_label)
+
         # Empty state label
         self._empty_label = QLabel("No installed fonts found.", self._list_container)
         self._empty_label.setStyleSheet("color: #64748b; font-size: 13px; padding: 32px;")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_label.setVisible(False)
         self._list_layout.addWidget(self._empty_label)
 
         self._scroll_area.setWidget(self._list_container)
@@ -617,6 +721,19 @@ class SystemView(QWidget):
     def _on_card_selection_changed(self, item: object, is_selected: bool) -> None:
         self._update_selection_state()
 
+    def _on_card_expand_requested(self, card: SystemFontItemWidget) -> None:
+        """Handle single row detail expansion across the registry view."""
+        if self._expanded_card == card:
+            # Clicking currently expanded row collapses it
+            card.set_expanded(False)
+            self._expanded_card = None
+        else:
+            # Collapse previous expanded card without refreshing or touching family states
+            if self._expanded_card is not None and self._expanded_card != card:
+                self._expanded_card.set_expanded(False)
+            card.set_expanded(True)
+            self._expanded_card = card
+
     def trigger_refresh(self) -> None:
         """Schedule background database refresh."""
         try:
@@ -627,6 +744,9 @@ class SystemView(QWidget):
 
     def trigger_scan_and_sync(self) -> None:
         """Run system font scan and database update asynchronously."""
+        self._is_scanning = True
+        self._loading_label.setVisible(True)
+        self._empty_label.setVisible(False)
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self._scan_and_sync_async())
@@ -639,12 +759,17 @@ class SystemView(QWidget):
 
         try:
             self._is_scanning = True
+            self._loading_label.setVisible(True)
+            self._empty_label.setVisible(False)
             await self.detector.scan_and_sync(self.repository)
             await self.refresh_installed_async()
         except Exception as exc:
             logger.error("Failed to scan system fonts: %s", exc)
         finally:
             self._is_scanning = False
+            self._loading_label.setVisible(False)
+            total_items = sum(len(f.cards) for f in self._family_widgets)
+            self._empty_label.setVisible(total_items == 0)
 
     async def refresh_installed_async(self) -> None:
         """Retrieve installed and system fonts from SQLite repository with family grouping."""
@@ -676,7 +801,7 @@ class SystemView(QWidget):
                 item = self._list_layout.itemAt(i)
                 if item:
                     widget = item.widget()
-                    if widget and widget != self._empty_label:
+                    if widget and widget not in (self._empty_label, self._loading_label):
                         self._list_layout.removeWidget(widget)
                         widget.hide()
                         widget.setParent(None)
@@ -686,6 +811,7 @@ class SystemView(QWidget):
 
             self._card_widgets.clear()
             self._family_widgets.clear()
+            self._expanded_card = None
 
             # Group items by normalized family name
             # key: normalized_family -> {"display_name": str, "items": list[dict]}
@@ -739,7 +865,11 @@ class SystemView(QWidget):
             families = {k: v for k, v in families.items() if v["items"]}
 
             total_items = sum(len(f["items"]) for f in families.values())
-            self._empty_label.setVisible(total_items == 0)
+            self._loading_label.setVisible(self._is_scanning)
+            if self._is_scanning:
+                self._empty_label.setVisible(False)
+            else:
+                self._empty_label.setVisible(total_items == 0)
 
             # Sort families alphabetically
             sorted_family_keys = sorted(families.keys(), key=lambda k: families[k]["display_name"].lower())
@@ -762,6 +892,7 @@ class SystemView(QWidget):
                     )
                     card.selection_changed.connect(self._on_card_selection_changed)
                     card.uninstall_requested.connect(self._on_single_uninstall_requested)
+                    card.expand_requested.connect(self._on_card_expand_requested)
                     family_widget.add_card(card)
                     self._card_widgets.append(card)
 

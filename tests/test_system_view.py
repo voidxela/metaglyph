@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
+from PySide6.QtWidgets import QLabel
 
 from metaglyph.db.models import Font, InstalledFont, SystemFontCacheEntry
 from metaglyph.db.repository import FontRepository
@@ -139,20 +140,34 @@ async def test_system_view_card_details_toggle(
         file_paths=["/path/to/JetBrainsMono.ttf"],
     )
 
-    card = SystemFontItemWidget(item=inst, is_managed=True)
+    card = SystemFontItemWidget(item=inst, style_name="Bold Italic", is_managed=True)
     assert card.details_box.isHidden()
-    assert card.expand_btn.text() == "Details"
+    assert not hasattr(card, "expand_btn")
 
-    # Click details button
-    card.expand_btn.click()
+    # Font preview widget should exist in details box
+    assert hasattr(card, "preview_widget")
+    assert card.preview_widget.font_family == "JetBrains Mono"
+    assert card.preview_widget.weight == 700
+    assert card.preview_widget.italic is True
+
+    # Details label should NOT have the redundant first line ("Family: JetBrains Mono ...")
+    details_lbl = card.details_box.findChild(QLabel, "systemFontPath")
+    assert details_lbl is not None
+    assert "Family: JetBrains Mono" not in details_lbl.text()
+    assert "Font ID: jetbrains-mono" in details_lbl.text()
+    assert "Provider: fontsource" in details_lbl.text()
+
+    # Expand card
+    card.set_expanded(True)
     assert not card.details_box.isHidden()
-    assert card.expand_btn.text() == "Hide"
+    assert card.is_expanded() is True
 
-    card.expand_btn.click()
+    # Collapse card
+    card.set_expanded(False)
     assert card.details_box.isHidden()
-    assert card.expand_btn.text() == "Details"
+    assert card.is_expanded() is False
 
-    # Row click selection
+    # Row click selection method
     card.set_row_selected(True)
     assert not card.details_box.isHidden()
     card.set_row_selected(False)
@@ -372,3 +387,125 @@ async def test_system_view_auto_scan_on_open(
     # Simulate tab open / show
     view.show()
     assert view._has_scanned_on_open is True
+
+
+@pytest.mark.asyncio
+async def test_system_view_single_row_expansion(
+    repository: FontRepository,
+) -> None:
+    """Verify only one row is expanded across the entire view, clicking current row collapses it, and family states are preserved."""
+    now = 1700000000
+    await repository.sync_system_font_cache([
+        SystemFontCacheEntry(
+            family_name="Roboto",
+            style_name="Regular",
+            postscript_name="Roboto-Regular",
+            file_path="/usr/share/fonts/Roboto-Regular.ttf",
+            scope="System",
+            last_scanned_at=now,
+        ),
+        SystemFontCacheEntry(
+            family_name="Roboto",
+            style_name="Bold",
+            postscript_name="Roboto-Bold",
+            file_path="/usr/share/fonts/Roboto-Bold.ttf",
+            scope="System",
+            last_scanned_at=now,
+        ),
+        SystemFontCacheEntry(
+            family_name="Fira Code",
+            style_name="Regular",
+            postscript_name="FiraCode-Regular",
+            file_path="/usr/share/fonts/FiraCode-Regular.ttf",
+            scope="System",
+            last_scanned_at=now,
+        ),
+    ])
+
+    view = SystemView(repository=repository)
+    await view.refresh_installed_async()
+
+    assert len(view._card_widgets) == 3
+    card0 = view._card_widgets[0]  # Fira Code Regular
+    card1 = view._card_widgets[1]  # Roboto Bold
+    card2 = view._card_widgets[2]  # Roboto Regular
+
+    # Initially no card is expanded
+    assert not card0.is_expanded()
+    assert not card1.is_expanded()
+    assert not card2.is_expanded()
+    assert view._expanded_card is None
+
+    # Expand card0
+    card0.expand_requested.emit(card0)
+    assert card0.is_expanded() is True
+    assert card1.is_expanded() is False
+    assert card2.is_expanded() is False
+    assert view._expanded_card == card0
+
+    # Expand card1 -> card0 should automatically collapse
+    card1.expand_requested.emit(card1)
+    assert card0.is_expanded() is False
+    assert card1.is_expanded() is True
+    assert card2.is_expanded() is False
+    assert view._expanded_card == card1
+
+    # Clicking currently expanded card1 header collapses it
+    card1.expand_requested.emit(card1)
+    assert card0.is_expanded() is False
+    assert card1.is_expanded() is False
+    assert card2.is_expanded() is False
+    assert view._expanded_card is None
+
+
+@pytest.mark.asyncio
+async def test_system_view_loading_indicator_and_empty_state_flow(
+    repository: FontRepository,
+) -> None:
+    """Verify loading indicator is shown during scanning and empty state is not reported prematurely."""
+    view = SystemView(repository=repository)
+
+    # Initial state before scan
+    assert view._loading_label.isHidden()
+    assert view._empty_label.isHidden()
+
+    # When scanning starts
+    view._is_scanning = True
+    await view.refresh_installed_async()
+    assert not view._loading_label.isHidden()
+    assert view._empty_label.isHidden()
+
+    # When scanning finishes with no fonts found
+    view._is_scanning = False
+    await view.refresh_installed_async()
+    assert view._loading_label.isHidden()
+    assert not view._empty_label.isHidden()
+
+
+@pytest.mark.asyncio
+async def test_system_family_widget_slide_animation() -> None:
+    """Verify SystemFontFamilyWidget collapse/expand state and animation properties."""
+    from metaglyph.ui.views.system_view import SystemFontFamilyWidget
+
+    fam = SystemFontFamilyWidget(family_name="Inter")
+    assert fam._is_collapsed is False
+    assert fam.chevron_label.text() == "▼"
+    assert fam._anim.duration() == 220
+
+    # Non-animated collapse
+    fam.set_collapsed(True, animated=False)
+    assert fam._is_collapsed is True
+    assert fam.chevron_label.text() == "▶"
+    assert fam.cards_container.isHidden()
+
+    # Non-animated expand
+    fam.set_collapsed(False, animated=False)
+    assert fam._is_collapsed is False
+    assert fam.chevron_label.text() == "▼"
+    assert not fam.cards_container.isHidden()
+
+    # Animated collapse initiation
+    fam.set_collapsed(True, animated=True)
+    assert fam._is_collapsed is True
+    assert fam.chevron_label.text() == "▶"
+
