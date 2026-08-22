@@ -96,7 +96,7 @@ class GoogleFontsProvider(BaseFontProvider):
                 "serif": "serif",
             }
             category = category_map.get(raw_category, raw_category)
-            curated = curate_category(family_name, category)
+            curated = curate_category(category, family_name)
 
             # Check variable font capabilities
             axes = item.get("axes", [])

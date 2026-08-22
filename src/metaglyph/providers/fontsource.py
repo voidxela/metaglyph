@@ -69,7 +69,7 @@ class FontsourceProvider(BaseFontProvider):
 
             font_id = normalize_family_name(family_name)
             category = (item.get("category") or "sans-serif").lower()
-            curated = curate_category(family_name, category)
+            curated = curate_category(category, family_name)
             is_variable = bool(item.get("variable", False))
 
             weights = item.get("weights", [400])
