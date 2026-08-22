@@ -13,6 +13,8 @@ from .harness import VisualHarness
 from .runner import ScenarioRunner
 from .scenarios import PREDEFINED_SCENARIOS, VisualScenario
 
+pytestmark = pytest.mark.visual
+
 
 # ============================================================================
 # 1. VisualDiff Engine Tests
