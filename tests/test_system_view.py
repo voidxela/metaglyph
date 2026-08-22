@@ -600,4 +600,64 @@ async def test_system_font_item_widget_animated_expansion() -> None:
     assert card.is_expanded() is False
 
 
+@pytest.mark.asyncio
+async def test_system_view_smooth_scanning_and_state_preservation(
+    repository: FontRepository,
+) -> None:
+    """Verify scanning with an existing list uses header indicator and preserves expanded families/cards."""
+    now = 1700000000
+    await repository.sync_system_font_cache([
+        SystemFontCacheEntry(
+            family_name="Roboto",
+            style_name="Regular",
+            postscript_name="Roboto-Regular",
+            file_path="/usr/share/fonts/Roboto-Regular.ttf",
+            scope="System",
+            last_scanned_at=now,
+        ),
+        SystemFontCacheEntry(
+            family_name="Fira Code",
+            style_name="Regular",
+            postscript_name="FiraCode-Regular",
+            file_path="/usr/share/fonts/FiraCode-Regular.ttf",
+            scope="System",
+            last_scanned_at=now,
+        ),
+    ])
+
+    view = SystemView(repository=repository)
+    await view.refresh_installed_async()
+
+    assert len(view._family_widgets) == 2
+    # Expand first family (Fira Code)
+    view._family_widgets[0].set_collapsed(False, animated=False)
+    assert view._family_widgets[0]._is_collapsed is False
+
+    # Expand card details inside Fira Code
+    card = view._family_widgets[0].cards[0]
+    card.set_expanded(True, animated=False)
+    view._expanded_card = card
+    assert card.is_expanded() is True
+
+    # Check that calling refresh when content has not changed preserves identical widget instances
+    original_family_widget = view._family_widgets[0]
+    original_card_widget = card
+
+    # Simulate scanning starting with existing list
+    view.trigger_scan_and_sync()
+    assert not view._header_scan_indicator.isHidden()
+    assert view._loading_label.isHidden()
+    assert view._empty_label.isHidden()
+
+    # Re-run refresh (same content)
+    await view.refresh_installed_async()
+
+    # Widget instances are identical because refresh detected no content change
+    assert view._family_widgets[0] is original_family_widget
+    assert view._family_widgets[0].cards[0] is original_card_widget
+    assert view._family_widgets[0]._is_collapsed is False
+    assert view._family_widgets[0].cards[0].is_expanded() is True
+
+
+
 

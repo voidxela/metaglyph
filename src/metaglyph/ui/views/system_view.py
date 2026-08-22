@@ -586,6 +586,7 @@ class SystemView(QWidget):
         self._card_widgets: list[SystemFontItemWidget] = []
         self._family_widgets: list[SystemFontFamilyWidget] = []
         self._expanded_card: SystemFontItemWidget | None = None
+        self._rendered_signature: tuple | None = None
         self._is_scanning: bool = False
         self._is_uninstalling: bool = False
         self._has_scanned_on_open: bool = False
@@ -617,6 +618,11 @@ class SystemView(QWidget):
 
         header_layout.addLayout(title_layout)
         header_layout.addStretch(1)
+
+        self._header_scan_indicator = QLabel("⟳ Scanning fonts...", self)
+        self._header_scan_indicator.setObjectName("headerScanIndicator")
+        self._header_scan_indicator.setVisible(False)
+        header_layout.addWidget(self._header_scan_indicator)
 
         main_layout.addLayout(header_layout)
 
@@ -828,7 +834,9 @@ class SystemView(QWidget):
     def trigger_scan_and_sync(self) -> None:
         """Run system font scan and database update asynchronously."""
         self._is_scanning = True
-        self._loading_label.setVisible(True)
+        has_existing = len(self._family_widgets) > 0
+        self._header_scan_indicator.setVisible(has_existing)
+        self._loading_label.setVisible(not has_existing)
         self._empty_label.setVisible(False)
         try:
             loop = asyncio.get_running_loop()
@@ -842,14 +850,18 @@ class SystemView(QWidget):
 
         try:
             self._is_scanning = True
-            self._loading_label.setVisible(True)
+            has_existing = len(self._family_widgets) > 0
+            self._header_scan_indicator.setVisible(has_existing)
+            self._loading_label.setVisible(not has_existing)
             self._empty_label.setVisible(False)
+
             await self.detector.scan_and_sync(self.repository)
             await self.refresh_installed_async()
         except Exception as exc:
             logger.error("Failed to scan system fonts: %s", exc)
         finally:
             self._is_scanning = False
+            self._header_scan_indicator.setVisible(False)
             self._loading_label.setVisible(False)
             total_items = sum(len(f.cards) for f in self._family_widgets)
             self._empty_label.setVisible(total_items == 0)
@@ -878,23 +890,6 @@ class SystemView(QWidget):
 
             self._installed_fonts = installed
             self._system_fonts = system_fonts
-
-            # Clear existing widgets and spacers
-            for i in reversed(range(self._list_layout.count())):
-                item = self._list_layout.itemAt(i)
-                if item:
-                    widget = item.widget()
-                    if widget and widget not in (self._empty_label, self._loading_label):
-                        self._list_layout.removeWidget(widget)
-                        widget.hide()
-                        widget.setParent(None)
-                        widget.deleteLater()
-                    elif not widget:
-                        self._list_layout.removeItem(item)
-
-            self._card_widgets.clear()
-            self._family_widgets.clear()
-            self._expanded_card = None
 
             # Group items by normalized family name
             # key: normalized_family -> {"display_name": str, "items": list[dict]}
@@ -948,18 +943,66 @@ class SystemView(QWidget):
             families = {k: v for k, v in families.items() if v["items"]}
 
             total_items = sum(len(f["items"]) for f in families.values())
-            self._loading_label.setVisible(self._is_scanning)
+            has_existing = len(self._family_widgets) > 0
+
             if self._is_scanning:
+                self._loading_label.setVisible(not has_existing)
                 self._empty_label.setVisible(False)
             else:
+                self._loading_label.setVisible(False)
                 self._empty_label.setVisible(total_items == 0)
 
             # Sort families alphabetically
             sorted_family_keys = sorted(families.keys(), key=lambda k: families[k]["display_name"].lower())
 
+            # Build data signature for content change detection
+            new_sig_list = []
             for norm_key in sorted_family_keys:
                 fam_info = families[norm_key]
-                family_widget = SystemFontFamilyWidget(family_name=fam_info["display_name"], parent=self._list_container)
+                sorted_items = sorted(fam_info["items"], key=lambda it: _variant_sort_order(it["style_name"]))
+                fam_sig = (
+                    fam_info["display_name"],
+                    tuple((it["style_name"], it["file_path"], it["is_managed"]) for it in sorted_items),
+                )
+                new_sig_list.append(fam_sig)
+            new_signature = tuple(new_sig_list)
+
+            # If content has not changed and list is already populated, skip rebuilding DOM to avoid reset and flicker
+            if self._rendered_signature == new_signature and len(self._family_widgets) > 0:
+                return
+
+            # Capture existing UI state before updating
+            expanded_families = {fam.family_name for fam in self._family_widgets if not fam._is_collapsed}
+            expanded_card_key = (self._expanded_card.family_name, self._expanded_card.style_name) if self._expanded_card else None
+            selected_card_keys = {(c.family_name, c.style_name) for c in self._card_widgets if c.is_selected()}
+            scroll_pos = self._scroll_area.verticalScrollBar().value()
+
+            # Clear existing widgets and spacers
+            for i in reversed(range(self._list_layout.count())):
+                item = self._list_layout.itemAt(i)
+                if item:
+                    widget = item.widget()
+                    if widget and widget not in (self._empty_label, self._loading_label):
+                        self._list_layout.removeWidget(widget)
+                        widget.hide()
+                        widget.setParent(None)
+                        widget.deleteLater()
+                    elif not widget:
+                        self._list_layout.removeItem(item)
+
+            self._card_widgets.clear()
+            self._family_widgets.clear()
+            self._expanded_card = None
+
+            for norm_key in sorted_family_keys:
+                fam_info = families[norm_key]
+                # Preserve previously expanded state or default to collapsed
+                is_collapsed = fam_info["display_name"] not in expanded_families
+                family_widget = SystemFontFamilyWidget(
+                    family_name=fam_info["display_name"],
+                    initially_collapsed=is_collapsed,
+                    parent=self._list_container,
+                )
 
                 # Sort variants within family logically
                 sorted_items = sorted(fam_info["items"], key=lambda it: _variant_sort_order(it["style_name"]))
@@ -976,6 +1019,14 @@ class SystemView(QWidget):
                     card.selection_changed.connect(self._on_card_selection_changed)
                     card.uninstall_requested.connect(self._on_single_uninstall_requested)
                     card.expand_requested.connect(self._on_card_expand_requested)
+
+                    card_key = (item_dict["family_name"], item_dict["style_name"])
+                    if card_key in selected_card_keys:
+                        card.set_selected(True)
+                    if card_key == expanded_card_key:
+                        card.set_expanded(True, animated=False)
+                        self._expanded_card = card
+
                     family_widget.add_card(card)
                     self._card_widgets.append(card)
 
@@ -985,6 +1036,8 @@ class SystemView(QWidget):
             if self._family_widgets:
                 self._list_layout.addStretch(1)
 
+            self._scroll_area.verticalScrollBar().setValue(scroll_pos)
+            self._rendered_signature = new_signature
             self._update_selection_state()
 
         except Exception as exc:
