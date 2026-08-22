@@ -243,3 +243,41 @@ async def test_system_view_batch_selection_and_uninstall(
     # View should show empty
     assert len(view._card_widgets) == 0
     assert not view._empty_label.isHidden()
+
+
+@pytest.mark.asyncio
+async def test_system_view_batch_uninstall_cache_entries_complex_name(
+    repository: FontRepository,
+    tmp_path: Path,
+    test_ttf_bytes: bytes,
+) -> None:
+    """Verify batch uninstall with SystemFontCacheEntry items and complex family names."""
+    user_fonts_dir = tmp_path / "user_fonts"
+    user_fonts_dir.mkdir(parents=True, exist_ok=True)
+    f = user_fonts_dir / "AdobeGaramondPro.ttf"
+    f.write_bytes(test_ttf_bytes)
+
+    user_installer = UserFontInstaller(
+        repository=repository,
+        target_dir_override=user_fonts_dir,
+    )
+    uninstaller = FontUninstaller(
+        repository=repository,
+        user_installer=user_installer,
+    )
+
+    view = SystemView(repository=repository, uninstaller=uninstaller)
+    cache_entry = SystemFontCacheEntry(
+        family_name="Adobe Garamond Pro",
+        postscript_name="AGaramondPro-Regular",
+        file_path=str(f),
+        scope="User",
+        is_metaglyph_managed=True,
+        last_scanned_at=1700000000,
+    )
+
+    results = await view.batch_uninstall_async([cache_entry])
+    assert len(results) == 1
+    assert results[0].success is True
+    assert results[0].font_id == "garamond-pro"
+    assert not f.exists()

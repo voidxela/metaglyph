@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from metaglyph.db.models import InstalledFont, SystemFontCacheEntry
+from metaglyph.db.normalizer import normalize_family_name
 from metaglyph.db.repository import FontRepository
 from metaglyph.installer.detector import FontDetector
 from metaglyph.installer.uninstaller import FontUninstaller
@@ -582,7 +583,7 @@ class SystemView(QWidget):
                     # Convert cache entry to temporary InstalledFont record for uninstaller
                     installed_records.append(
                         InstalledFont(
-                            font_id=item.family_name.lower().replace(" ", "-"),
+                            font_id=normalize_family_name(item.family_name),
                             family_name=item.family_name,
                             provider="system",
                             install_scope=item.scope,
