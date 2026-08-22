@@ -316,13 +316,36 @@ class UIDriver:
         system_view._on_scope_clicked(val)
         await self.wait_for_idle(150)
 
-    def get_system_font_cards(self) -> list[SystemFontItemWidget]:
-        """Get all visible SystemFontItemWidget items in System View."""
+    def get_system_font_cards(self, include_collapsed: bool = False) -> list[SystemFontItemWidget]:
+        """Get SystemFontItemWidget items in System View."""
         system_view = self.window.system_view
+        if include_collapsed:
+            return list(system_view.findChildren(SystemFontItemWidget))
         return [c for c in system_view.findChildren(SystemFontItemWidget) if c.isVisible()]
+
+    async def expand_system_font_family(self, family_name: str) -> bool:
+        """Expand a specific font family widget by name."""
+        system_view = self.window.system_view
+        for fam in system_view._family_widgets:
+            if fam.family_name.lower() == family_name.lower():
+                fam.set_collapsed(False, animated=False)
+                await self.wait_for_idle(50)
+                return True
+        return False
+
+    async def expand_all_system_families(self) -> None:
+        """Expand all font families in system view."""
+        self.window.system_view.expand_all_families(animated=False)
+        await self.wait_for_idle(100)
+
+    async def collapse_all_system_families(self) -> None:
+        """Collapse all font families in system view."""
+        self.window.system_view.collapse_all_families(animated=False)
+        await self.wait_for_idle(100)
 
     async def toggle_system_font_selection(self, family_name: str, selected: bool = True) -> bool:
         """Toggle checkbox for a specific font in the system registry."""
+        await self.expand_system_font_family(family_name)
         cards = self.get_system_font_cards()
         for card in cards:
             if card.item.family_name.lower() == family_name.lower():
@@ -341,6 +364,7 @@ class UIDriver:
 
     async def expand_system_font_details(self, family_name: str) -> bool:
         """Click the row header on a system font card to toggle expanded details."""
+        await self.expand_system_font_family(family_name)
         cards = self.get_system_font_cards()
         for card in cards:
             if card.item.family_name.lower() == family_name.lower():

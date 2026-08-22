@@ -322,18 +322,27 @@ class SystemFontItemWidget(QFrame):
 class SystemFontFamilyWidget(QFrame):
     """Card grouping font variants belonging to the same font family."""
 
-    def __init__(self, family_name: str, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        family_name: str,
+        initially_collapsed: bool = True,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setObjectName("systemFontFamilyGroup")
         self.family_name = family_name
         self.cards: list[SystemFontItemWidget] = []
-        self._is_collapsed: bool = False
+        self._is_collapsed: bool = initially_collapsed
 
         self._init_ui()
         self._anim = QPropertyAnimation(self.cards_container, b"maximumHeight", self)
         self._anim.setDuration(220)
         self._anim.setEasingCurve(QEasingCurve.Type.InOutQuad)
         self._anim.finished.connect(self._on_animation_finished)
+
+        if self._is_collapsed:
+            self.cards_container.setVisible(False)
+            self.cards_container.setMaximumHeight(0)
 
     def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
@@ -349,7 +358,7 @@ class SystemFontFamilyWidget(QFrame):
         header_layout.setContentsMargins(12, 8, 12, 8)
         header_layout.setSpacing(8)
 
-        self.chevron_label = QLabel("▼", self.header_frame)
+        self.chevron_label = QLabel("▶" if self._is_collapsed else "▼", self.header_frame)
         self.chevron_label.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 700;")
         header_layout.addWidget(self.chevron_label)
 
@@ -630,6 +639,18 @@ class SystemView(QWidget):
 
         batch_layout.addStretch(1)
 
+        self._expand_all_btn = QPushButton("▼ Expand All", self._batch_bar)
+        self._expand_all_btn.setObjectName("expandAllBtn")
+        self._expand_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._expand_all_btn.clicked.connect(lambda: self.expand_all_families(animated=True))
+        batch_layout.addWidget(self._expand_all_btn)
+
+        self._collapse_all_btn = QPushButton("▶ Collapse All", self._batch_bar)
+        self._collapse_all_btn.setObjectName("collapseAllBtn")
+        self._collapse_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._collapse_all_btn.clicked.connect(lambda: self.collapse_all_families(animated=True))
+        batch_layout.addWidget(self._collapse_all_btn)
+
         self._batch_uninstall_btn = QPushButton("🗑️ Batch Uninstall", self._batch_bar)
         self._batch_uninstall_btn.setObjectName("batchUninstallBtn")
         self._batch_uninstall_btn.setEnabled(False)
@@ -733,6 +754,16 @@ class SystemView(QWidget):
                 self._expanded_card.set_expanded(False)
             card.set_expanded(True)
             self._expanded_card = card
+
+    def expand_all_families(self, animated: bool = True) -> None:
+        """Expand all font family groups."""
+        for fam in self._family_widgets:
+            fam.set_collapsed(False, animated=animated)
+
+    def collapse_all_families(self, animated: bool = True) -> None:
+        """Collapse all font family groups."""
+        for fam in self._family_widgets:
+            fam.set_collapsed(True, animated=animated)
 
     def trigger_refresh(self) -> None:
         """Schedule background database refresh."""

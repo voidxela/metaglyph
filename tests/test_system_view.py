@@ -487,16 +487,11 @@ async def test_system_family_widget_slide_animation() -> None:
     """Verify SystemFontFamilyWidget collapse/expand state and animation properties."""
     from metaglyph.ui.views.system_view import SystemFontFamilyWidget
 
-    fam = SystemFontFamilyWidget(family_name="Inter")
-    assert fam._is_collapsed is False
-    assert fam.chevron_label.text() == "▼"
-    assert fam._anim.duration() == 220
-
-    # Non-animated collapse
-    fam.set_collapsed(True, animated=False)
+    fam = SystemFontFamilyWidget(family_name="Inter", initially_collapsed=True)
     assert fam._is_collapsed is True
     assert fam.chevron_label.text() == "▶"
     assert fam.cards_container.isHidden()
+    assert fam._anim.duration() == 220
 
     # Non-animated expand
     fam.set_collapsed(False, animated=False)
@@ -504,8 +499,59 @@ async def test_system_family_widget_slide_animation() -> None:
     assert fam.chevron_label.text() == "▼"
     assert not fam.cards_container.isHidden()
 
-    # Animated collapse initiation
-    fam.set_collapsed(True, animated=True)
+    # Non-animated collapse
+    fam.set_collapsed(True, animated=False)
     assert fam._is_collapsed is True
     assert fam.chevron_label.text() == "▶"
+    assert fam.cards_container.isHidden()
+
+    # Animated expand initiation
+    fam.set_collapsed(False, animated=True)
+    assert fam._is_collapsed is False
+    assert fam.chevron_label.text() == "▼"
+
+
+@pytest.mark.asyncio
+async def test_system_view_expand_and_collapse_all_actions(
+    repository: FontRepository,
+) -> None:
+    """Verify all family groups start collapsed and Expand/Collapse All actions update all family widgets."""
+    now = 1700000000
+    await repository.sync_system_font_cache([
+        SystemFontCacheEntry(
+            family_name="Roboto",
+            style_name="Regular",
+            postscript_name="Roboto-Regular",
+            file_path="/usr/share/fonts/Roboto-Regular.ttf",
+            scope="System",
+            last_scanned_at=now,
+        ),
+        SystemFontCacheEntry(
+            family_name="Fira Code",
+            style_name="Regular",
+            postscript_name="FiraCode-Regular",
+            file_path="/usr/share/fonts/FiraCode-Regular.ttf",
+            scope="System",
+            last_scanned_at=now,
+        ),
+    ])
+
+    view = SystemView(repository=repository)
+    await view.refresh_installed_async()
+
+    assert len(view._family_widgets) == 2
+    # Verify all family widgets start collapsed by default
+    assert all(fam._is_collapsed for fam in view._family_widgets)
+    assert all(fam.cards_container.isHidden() for fam in view._family_widgets)
+
+    # Click Expand All action
+    view.expand_all_families(animated=False)
+    assert all(not fam._is_collapsed for fam in view._family_widgets)
+    assert all(not fam.cards_container.isHidden() for fam in view._family_widgets)
+
+    # Click Collapse All action
+    view.collapse_all_families(animated=False)
+    assert all(fam._is_collapsed for fam in view._family_widgets)
+    assert all(fam.cards_container.isHidden() for fam in view._family_widgets)
+
 

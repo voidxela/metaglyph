@@ -713,6 +713,22 @@ QToolTip {
     border-color: #232838;
 }
 
+#expandAllBtn, #collapseAllBtn {
+    background-color: #1c202e;
+    color: #94a3b8;
+    border: 1px solid #282e3f;
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+#expandAllBtn:hover, #collapseAllBtn:hover {
+    background-color: #262c3f;
+    color: #f1f5f9;
+    border-color: #3b4560;
+}
+
 /* Installed Font Family Groups & Variant Cards */
 #systemFontFamilyGroup {
     background-color: #161922;
