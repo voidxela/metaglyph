@@ -68,6 +68,7 @@ CREATE INDEX IF NOT EXISTS idx_installed_fonts_scope ON installed_fonts(install_
 -- System Font Index Cache (for System View)
 CREATE TABLE IF NOT EXISTS system_font_cache (
     family_name TEXT NOT NULL,
+    style_name TEXT DEFAULT 'Regular',
     postscript_name TEXT,
     file_path TEXT NOT NULL PRIMARY KEY,
     scope TEXT NOT NULL,
@@ -129,6 +130,13 @@ class DatabaseManager:
                 await conn.execute("PRAGMA journal_mode = WAL;")
 
             await conn.executescript(SCHEMA_DDL)
+
+            # Migration: ensure style_name exists in system_font_cache
+            try:
+                await conn.execute("ALTER TABLE system_font_cache ADD COLUMN style_name TEXT DEFAULT 'Regular';")
+            except Exception:
+                pass
+
             await conn.commit()
 
         self._is_initialized = True

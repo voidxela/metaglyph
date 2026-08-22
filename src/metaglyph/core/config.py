@@ -16,6 +16,9 @@ class Config(BaseModel):
     data_dir_override: Path | None = None
     config_dir_override: Path | None = None
     cache_dir_override: Path | None = None
+    user_fonts_dir_override: Path | None = None
+    system_fonts_dir_override: Path | None = None
+    system_font_search_paths_override: list[Path] | None = None
     platform_override: str | None = None
 
     default_sample_text: str = "The quick brown fox jumps over the lazy dog."
@@ -142,6 +145,8 @@ class Config(BaseModel):
     @property
     def user_fonts_dir(self) -> Path:
         """Primary OS font installation directory for the current user."""
+        if self.user_fonts_dir_override:
+            return self.user_fonts_dir_override
         home = Path.home()
         match self.platform_name:
             case "linux":
@@ -160,6 +165,8 @@ class Config(BaseModel):
     @property
     def system_fonts_dir(self) -> Path:
         """Primary OS font installation directory requiring system privileges."""
+        if self.system_fonts_dir_override:
+            return self.system_fonts_dir_override
         match self.platform_name:
             case "linux":
                 return Path("/usr/local/share/fonts") / self.app_name
@@ -174,6 +181,9 @@ class Config(BaseModel):
     @property
     def all_system_font_search_paths(self) -> list[Path]:
         """All search paths where OS fonts might reside."""
+        if self.system_font_search_paths_override is not None:
+            return [p for p in self.system_font_search_paths_override if p.exists()]
+
         paths: list[Path] = []
         home = Path.home()
 

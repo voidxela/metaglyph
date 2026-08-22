@@ -82,6 +82,7 @@ class SystemFontCacheEntry(BaseModel):
     """OS font index item discovered during system scan."""
 
     family_name: str
+    style_name: str = "Regular"
     postscript_name: str | None = None
     file_path: str
     scope: Literal["User", "System"] | str = "System"

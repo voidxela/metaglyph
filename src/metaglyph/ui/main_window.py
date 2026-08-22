@@ -201,7 +201,7 @@ class MainWindow(QMainWindow):
         elif page_index == 1:
             self.search_view.trigger_search()
         elif page_index == 2:
-            self.system_view.trigger_refresh()
+            self.system_view.trigger_scan_and_sync()
 
     def _on_discover_category_selected(self, category: str) -> None:
         """Switch to search view with curated category pre-filtered."""

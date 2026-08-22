@@ -713,24 +713,48 @@ QToolTip {
     border-color: #232838;
 }
 
-/* System Font Cards */
-#systemFontCard {
+/* Installed Font Family Groups & Variant Cards */
+#systemFontFamilyGroup {
     background-color: #161922;
     border: 1px solid #232838;
     border-radius: 8px;
-    padding: 10px 12px;
+    margin-bottom: 8px;
+}
+
+#systemFontFamilyHeader {
+    background-color: #1a1f2c;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    border-bottom: 1px solid #232838;
+}
+
+#systemFontFamilyHeader:hover {
+    background-color: #202737;
+}
+
+#systemFontCard {
+    background-color: #13161f;
+    border: 1px solid #1e2330;
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin: 2px 4px;
 }
 
 #systemFontCard:hover {
-    background-color: #1a1f2b;
-    border-color: #363e54;
+    background-color: #191f2c;
+    border-color: #313a4e;
+}
+
+#systemFontCard[selected="true"] {
+    background-color: #1a2234;
+    border-color: #4f46e5;
 }
 
 #systemFontDetailsBox {
-    background-color: #0f1117;
-    border: 1px solid #1e2230;
+    background-color: #0b0d13;
+    border: 1px solid #1a1e2b;
     border-radius: 6px;
-    padding: 8px 10px;
+    padding: 10px 12px;
     margin-top: 4px;
 }
 

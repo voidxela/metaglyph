@@ -1,4 +1,4 @@
-"""System font registry, metadata inspector, and batch font uninstaller view."""
+"""Installed font registry, family grouping, metadata inspector, and batch uninstaller view."""
 
 from __future__ import annotations
 
@@ -7,10 +7,11 @@ import datetime
 import logging
 from pathlib import Path
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QClipboard, QMouseEvent
 from PySide6.QtWidgets import (
+    QApplication,
     QButtonGroup,
     QCheckBox,
-    QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -24,15 +25,45 @@ from PySide6.QtWidgets import (
 from metaglyph.db.models import InstalledFont, SystemFontCacheEntry
 from metaglyph.db.normalizer import normalize_family_name
 from metaglyph.db.repository import FontRepository
-from metaglyph.installer.detector import FontDetector
+from metaglyph.installer.detector import FontDetector, extract_font_names
 from metaglyph.installer.uninstaller import FontUninstaller
 from metaglyph.ui.components.search_bar import SearchBar
 
 logger = logging.getLogger(__name__)
 
 
+def _variant_sort_order(style_name: str) -> tuple[int, int, str]:
+    """Sort key helper for standard typography variant ordering."""
+    order = {
+        "thin": 100,
+        "hairline": 100,
+        "extralight": 200,
+        "extra light": 200,
+        "ultralight": 200,
+        "light": 300,
+        "regular": 400,
+        "normal": 400,
+        "book": 400,
+        "medium": 500,
+        "semibold": 600,
+        "semi bold": 600,
+        "demibold": 600,
+        "bold": 700,
+        "extrabold": 800,
+        "extra bold": 800,
+        "ultrabold": 800,
+        "black": 900,
+        "heavy": 900,
+    }
+    s = style_name.lower().strip()
+    is_italic = 1 if ("italic" in s or "oblique" in s) else 0
+    clean = s.replace("italic", "").replace("oblique", "").strip()
+    weight_score = order.get(clean, 450)
+    return (weight_score, is_italic, style_name)
+
+
 class SystemFontItemWidget(QFrame):
-    """Card widget representing a single installed or system font in the registry."""
+    """Condensed single-line widget representing a single installed or system font variant."""
 
     selection_changed = Signal(object, bool)  # (item, is_selected)
     uninstall_requested = Signal(object)       # (InstalledFont or SystemFontCacheEntry)
@@ -40,26 +71,33 @@ class SystemFontItemWidget(QFrame):
     def __init__(
         self,
         item: InstalledFont | SystemFontCacheEntry,
+        family_name: str | None = None,
+        style_name: str | None = None,
+        file_path: str | None = None,
         is_managed: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("systemFontCard")
         self.item = item
+        self.family_name = family_name or item.family_name
+        self.style_name = style_name or getattr(item, "style_name", "Regular") or "Regular"
+        self.file_path = file_path or (item.file_paths[0] if isinstance(item, InstalledFont) and item.file_paths else getattr(item, "file_path", ""))
         self.is_managed = is_managed
         self._is_expanded: bool = False
 
         self._init_ui()
 
     def _init_ui(self) -> None:
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(12, 10, 12, 10)
-        main_layout.setSpacing(6)
+        main_layout.setContentsMargins(8, 6, 8, 6)
+        main_layout.setSpacing(4)
 
-        # Primary Row
+        # Primary Single-Line Row
         row_layout = QHBoxLayout()
         row_layout.setContentsMargins(0, 0, 0, 0)
-        row_layout.setSpacing(10)
+        row_layout.setSpacing(8)
 
         # 1. Selection Checkbox
         self.checkbox = QCheckBox(self)
@@ -67,83 +105,95 @@ class SystemFontItemWidget(QFrame):
         self.checkbox.toggled.connect(self._on_toggled)
         row_layout.addWidget(self.checkbox)
 
-        # 2. Font info
-        info_layout = QVBoxLayout()
-        info_layout.setSpacing(2)
+        # 2. Font Display Title (Family — Variant)
+        display_name = f"{self.family_name} — {self.style_name}"
+        self.name_label = QLabel(display_name, self)
+        self.name_label.setStyleSheet("font-size: 13px; font-weight: 600; color: #f8fafc;")
+        row_layout.addWidget(self.name_label)
 
-        self.name_label = QLabel(self.item.family_name, self)
-        self.name_label.setStyleSheet("font-size: 14px; font-weight: 700; color: #f8fafc;")
-        info_layout.addWidget(self.name_label)
-
+        # Subtle sub label (kept for backwards compatibility)
         if isinstance(self.item, InstalledFont):
             provider_title = self.item.provider.replace("_", " ").title()
-            installed_date = datetime.datetime.fromtimestamp(self.item.installed_at).strftime("%Y-%m-%d %H:%M")
-            sub_text = f"Installed via {provider_title} • {installed_date} • {len(self.item.file_paths)} file(s)"
+            installed_date = datetime.datetime.fromtimestamp(self.item.installed_at).strftime("%Y-%m-%d")
+            sub_text = f"{provider_title} • {installed_date}"
         else:
-            sub_text = str(self.item.file_path)
-
+            sub_text = Path(self.file_path).name if self.file_path else ""
         self.sub_label = QLabel(sub_text, self)
         self.sub_label.setStyleSheet("color: #64748b; font-size: 11px;")
-        info_layout.addWidget(self.sub_label)
+        row_layout.addWidget(self.sub_label)
 
-        row_layout.addLayout(info_layout, stretch=1)
+        row_layout.addStretch(1)
 
-        # 3. Badges
-        scope = self.item.install_scope if isinstance(self.item, InstalledFont) else self.item.scope
+        # 3. Format tag
+        fmt = Path(self.file_path).suffix.lstrip(".").upper() if self.file_path else "TTF"
+        if fmt:
+            format_badge = QLabel(fmt, self)
+            format_badge.setStyleSheet(
+                "background-color: #1e2230; color: #94a3b8; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 3px;"
+            )
+            row_layout.addWidget(format_badge)
+
+        # 4. Scope Badge
+        scope = self.item.install_scope if isinstance(self.item, InstalledFont) else getattr(self.item, "scope", "System")
         scope_badge = QLabel(scope, self)
         scope_color = "#38bdf8" if scope == "User" else "#f59e0b"
         scope_badge.setStyleSheet(
-            f"background-color: #1c2438; color: {scope_color}; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;"
+            f"background-color: #1c2438; color: {scope_color}; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;"
         )
         row_layout.addWidget(scope_badge)
 
+        # 5. Managed Badge
         if self.is_managed:
             mgmt_badge = QLabel("Managed", self)
             mgmt_badge.setStyleSheet(
-                "background-color: #064e3b; color: #34d399; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px;"
+                "background-color: #064e3b; color: #34d399; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;"
             )
             row_layout.addWidget(mgmt_badge)
 
-        # 4. Expand / Details Button
+        # 6. Expand / Details Button
         self.expand_btn = QPushButton("Details", self)
         self.expand_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.expand_btn.setStyleSheet(
-            "background-color: #252533; color: #94a3b8; border: 1px solid #333345; padding: 4px 10px; border-radius: 4px; font-size: 11px;"
+            "QPushButton { background-color: #252533; color: #94a3b8; border: 1px solid #333345; padding: 3px 8px; border-radius: 4px; font-size: 11px; } "
+            "QPushButton:hover { background-color: #313144; color: #f1f5f9; }"
         )
         self.expand_btn.clicked.connect(self._toggle_expand)
         row_layout.addWidget(self.expand_btn)
 
-        # 5. Uninstall Button
+        # 7. Uninstall Button
         self.uninstall_btn = QPushButton("Uninstall", self)
         self.uninstall_btn.setObjectName("uninstallItemBtn")
         self.uninstall_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.uninstall_btn.setStyleSheet(
-            "QPushButton { background-color: #7f1d1d; color: #fecaca; border: 1px solid #991b1b; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; } QPushButton:hover { background-color: #991b1b; color: #ffffff; }"
+            "QPushButton { background-color: #7f1d1d; color: #fecaca; border: 1px solid #991b1b; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; } "
+            "QPushButton:hover { background-color: #991b1b; color: #ffffff; }"
         )
         self.uninstall_btn.clicked.connect(self._on_uninstall_clicked)
         row_layout.addWidget(self.uninstall_btn)
 
         main_layout.addLayout(row_layout)
 
-        # Details Box (hidden by default)
+        # Details Context Drawer (shown when row is selected / expanded)
         self.details_box = QFrame(self)
         self.details_box.setObjectName("systemFontDetailsBox")
         details_layout = QVBoxLayout(self.details_box)
         details_layout.setContentsMargins(12, 10, 12, 10)
-        details_layout.setSpacing(4)
+        details_layout.setSpacing(6)
 
         if isinstance(self.item, InstalledFont):
             paths_str = "\n".join(f"  • {p}" for p in self.item.file_paths)
             d_text = (
-                f"Font ID: {self.item.font_id}   |   Provider: {self.item.provider}   |   Scope: {self.item.install_scope}\n"
+                f"Family: {self.family_name}   |   Variant: {self.style_name}   |   Scope: {self.item.install_scope}\n"
+                f"Font ID: {self.item.font_id}   |   Provider: {self.item.provider}\n"
                 f"Installed At: {datetime.datetime.fromtimestamp(self.item.installed_at).strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"Files:\n{paths_str}"
             )
         else:
+            ps_name = getattr(self.item, "postscript_name", None) or "N/A"
             d_text = (
-                f"Family: {self.item.family_name}   |   Scope: {self.item.scope}\n"
-                f"PostScript: {self.item.postscript_name or 'N/A'}\n"
-                f"Path: {self.item.file_path}"
+                f"Family: {self.family_name}   |   Variant: {self.style_name}   |   Scope: {getattr(self.item, 'scope', 'System')}\n"
+                f"PostScript: {ps_name}\n"
+                f"Path: {self.file_path}"
             )
 
         details_lbl = QLabel(d_text, self.details_box)
@@ -152,16 +202,45 @@ class SystemFontItemWidget(QFrame):
         details_lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         details_layout.addWidget(details_lbl)
 
+        # Context action buttons
+        actions_layout = QHBoxLayout()
+        actions_layout.setContentsMargins(0, 4, 0, 0)
+        actions_layout.setSpacing(8)
+
+        self.copy_path_btn = QPushButton("📋 Copy Path", self.details_box)
+        self.copy_path_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.copy_path_btn.setStyleSheet(
+            "QPushButton { background-color: #22222f; color: #cbd5e1; border: 1px solid #333346; padding: 4px 10px; border-radius: 4px; font-size: 11px; } "
+            "QPushButton:hover { background-color: #2c2c3d; color: #ffffff; }"
+        )
+        self.copy_path_btn.clicked.connect(self._copy_path_to_clipboard)
+        actions_layout.addWidget(self.copy_path_btn)
+
+        actions_layout.addStretch(1)
+        details_layout.addLayout(actions_layout)
+
         main_layout.addWidget(self.details_box)
         self.details_box.setVisible(False)
 
         self.setLayout(main_layout)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        """Clicking on row toggles selection and context details."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            child = self.childAt(event.pos())
+            if child in (self, self.name_label, self.sub_label):
+                self._toggle_expand()
+        super().mousePressEvent(event)
 
     def is_selected(self) -> bool:
         return self.checkbox.isChecked()
 
     def set_selected(self, selected: bool) -> None:
         self.checkbox.setChecked(selected)
+
+    def set_row_selected(self, selected: bool) -> None:
+        if self._is_expanded != selected:
+            self._toggle_expand()
 
     def _on_toggled(self, checked: bool) -> None:
         self.selection_changed.emit(self.item, checked)
@@ -170,13 +249,161 @@ class SystemFontItemWidget(QFrame):
         self._is_expanded = not self._is_expanded
         self.details_box.setVisible(self._is_expanded)
         self.expand_btn.setText("Hide" if self._is_expanded else "Details")
+        self.setProperty("selected", self._is_expanded)
+        self.style().unpolish(self)
+        self.style().polish(self)
+
+    def _copy_path_to_clipboard(self) -> None:
+        if self.file_path:
+            clipboard = QApplication.clipboard()
+            if clipboard:
+                clipboard.setText(self.file_path)
+                self.copy_path_btn.setText("✓ Copied!")
+                self.copy_path_btn.setEnabled(False)
+                try:
+                    asyncio.get_running_loop().call_later(1.5, self._reset_copy_btn)
+                except RuntimeError:
+                    pass
+
+    def _reset_copy_btn(self) -> None:
+        self.copy_path_btn.setText("📋 Copy Path")
+        self.copy_path_btn.setEnabled(True)
 
     def _on_uninstall_clicked(self) -> None:
         self.uninstall_requested.emit(self.item)
 
 
+class SystemFontFamilyWidget(QFrame):
+    """Card grouping font variants belonging to the same font family."""
+
+    def __init__(self, family_name: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("systemFontFamilyGroup")
+        self.family_name = family_name
+        self.cards: list[SystemFontItemWidget] = []
+        self._is_collapsed: bool = False
+
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # Header Frame
+        self.header_frame = QFrame(self)
+        self.header_frame.setObjectName("systemFontFamilyHeader")
+        self.header_frame.setCursor(Qt.CursorShape.PointingHandCursor)
+        header_layout = QHBoxLayout(self.header_frame)
+        header_layout.setContentsMargins(12, 8, 12, 8)
+        header_layout.setSpacing(8)
+
+        self.chevron_label = QLabel("▼", self.header_frame)
+        self.chevron_label.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 700;")
+        header_layout.addWidget(self.chevron_label)
+
+        self.family_checkbox = QCheckBox(self.header_frame)
+        self.family_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.family_checkbox.toggled.connect(self._on_family_checkbox_toggled)
+        header_layout.addWidget(self.family_checkbox)
+
+        self.title_label = QLabel(self.family_name, self.header_frame)
+        self.title_label.setStyleSheet("font-size: 14px; font-weight: 700; color: #f8fafc;")
+        header_layout.addWidget(self.title_label)
+
+        self.count_badge = QLabel("0 variants", self.header_frame)
+        self.count_badge.setStyleSheet(
+            "background-color: #22222e; color: #94a3b8; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px;"
+        )
+        header_layout.addWidget(self.count_badge)
+
+        header_layout.addStretch(1)
+
+        self.scope_container = QHBoxLayout()
+        self.scope_container.setSpacing(6)
+        header_layout.addLayout(self.scope_container)
+
+        main_layout.addWidget(self.header_frame)
+
+        # Cards Container
+        self.cards_container = QWidget(self)
+        self.cards_layout = QVBoxLayout(self.cards_container)
+        self.cards_layout.setContentsMargins(6, 4, 6, 6)
+        self.cards_layout.setSpacing(2)
+        main_layout.addWidget(self.cards_container)
+
+        self.setLayout(main_layout)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        child = self.childAt(event.pos())
+        if child not in (self.family_checkbox,):
+            self.set_collapsed(not self._is_collapsed)
+        super().mousePressEvent(event)
+
+    def set_collapsed(self, collapsed: bool) -> None:
+        self._is_collapsed = collapsed
+        self.cards_container.setVisible(not collapsed)
+        self.chevron_label.setText("▶" if collapsed else "▼")
+
+    def add_card(self, card: SystemFontItemWidget) -> None:
+        self.cards.append(card)
+        self.cards_layout.addWidget(card)
+        card.selection_changed.connect(self._on_card_selection_changed)
+        self._update_header_meta()
+
+    def _on_card_selection_changed(self, item: object, is_selected: bool) -> None:
+        self._update_family_checkbox()
+
+    def _on_family_checkbox_toggled(self, checked: bool) -> None:
+        for card in self.cards:
+            card.checkbox.blockSignals(True)
+            card.set_selected(checked)
+            card.checkbox.blockSignals(False)
+            card.selection_changed.emit(card.item, checked)
+
+    def _update_family_checkbox(self) -> None:
+        selected_count = sum(1 for c in self.cards if c.is_selected())
+        total = len(self.cards)
+
+        self.family_checkbox.blockSignals(True)
+        if selected_count == total and total > 0:
+            self.family_checkbox.setCheckState(Qt.CheckState.Checked)
+        elif selected_count > 0:
+            self.family_checkbox.setCheckState(Qt.CheckState.PartiallyChecked)
+        else:
+            self.family_checkbox.setCheckState(Qt.CheckState.Unchecked)
+        self.family_checkbox.blockSignals(False)
+
+    def _update_header_meta(self) -> None:
+        count = len(self.cards)
+        self.count_badge.setText(f"{count} variant" if count == 1 else f"{count} variants")
+
+        # Clear existing scope badges
+        for i in reversed(range(self.scope_container.count())):
+            item = self.scope_container.itemAt(i)
+            if item and item.widget():
+                w = item.widget()
+                self.scope_container.removeWidget(w)
+                w.deleteLater()
+
+        scopes = {c.item.install_scope if isinstance(c.item, InstalledFont) else getattr(c.item, "scope", "System") for c in self.cards}
+        if "User" in scopes:
+            b = QLabel("User", self.header_frame)
+            b.setStyleSheet("background-color: #1c2438; color: #38bdf8; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;")
+            self.scope_container.addWidget(b)
+        if "System" in scopes:
+            b = QLabel("System", self.header_frame)
+            b.setStyleSheet("background-color: #1c2438; color: #f59e0b; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;")
+            self.scope_container.addWidget(b)
+
+        if any(c.is_managed for c in self.cards):
+            mb = QLabel("Managed", self.header_frame)
+            mb.setStyleSheet("background-color: #064e3b; color: #34d399; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;")
+            self.scope_container.addWidget(mb)
+
+
 class SystemView(QWidget):
-    """Local OS and Metaglyph-installed font registry view with batch uninstallation."""
+    """Local OS and Metaglyph-installed font registry view with family grouping and batch uninstallation."""
 
     scan_requested = Signal()
     batch_uninstall_requested = Signal(list)  # list of InstalledFont or SystemFontCacheEntry
@@ -202,8 +429,10 @@ class SystemView(QWidget):
         self._installed_fonts: list[InstalledFont] = []
         self._system_fonts: list[SystemFontCacheEntry] = []
         self._card_widgets: list[SystemFontItemWidget] = []
+        self._family_widgets: list[SystemFontFamilyWidget] = []
         self._is_scanning: bool = False
         self._is_uninstalling: bool = False
+        self._has_scanned_on_open: bool = False
 
         self._init_ui()
 
@@ -219,12 +448,12 @@ class SystemView(QWidget):
         title_layout = QVBoxLayout()
         title_layout.setSpacing(2)
 
-        title_label = QLabel("System Font Registry", self)
+        title_label = QLabel("Installed Fonts", self)
         title_label.setStyleSheet("font-size: 18px; font-weight: 800; color: #f8fafc;")
         title_layout.addWidget(title_label)
 
         sub_label = QLabel(
-            "Scan OS font directories, inspect local fonts, and manage installations.",
+            "Inspect local user and system fonts, and manage installations.",
             self,
         )
         sub_label.setStyleSheet("color: #64748b; font-size: 12px;")
@@ -232,16 +461,6 @@ class SystemView(QWidget):
 
         header_layout.addLayout(title_layout)
         header_layout.addStretch(1)
-
-        # Scan OS Fonts Button
-        self._scan_btn = QPushButton("🔍  Scan Local Fonts", self)
-        self._scan_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._scan_btn.setStyleSheet(
-            "QPushButton { background-color: #22222c; border: 1px solid #313140; color: #cbd5e1; padding: 8px 14px; border-radius: 6px; font-weight: 600; } "
-            "QPushButton:hover { background-color: #2b2b38; border-color: #6366f1; color: #ffffff; }"
-        )
-        self._scan_btn.clicked.connect(self._on_scan_clicked)
-        header_layout.addWidget(self._scan_btn)
 
         main_layout.addLayout(header_layout)
 
@@ -251,7 +470,7 @@ class SystemView(QWidget):
         filter_layout.setSpacing(8)
 
         self._search_bar = SearchBar(
-            placeholder_text="Filter installed fonts by family name or path...",
+            placeholder_text="Filter installed fonts by family, variant, or path...",
             debounce_ms=150,
             parent=self,
         )
@@ -334,7 +553,7 @@ class SystemView(QWidget):
         self._list_container = QWidget(self._scroll_area)
         self._list_layout = QVBoxLayout(self._list_container)
         self._list_layout.setContentsMargins(0, 0, 4, 0)
-        self._list_layout.setSpacing(8)
+        self._list_layout.setSpacing(10)
 
         # Empty state label
         self._empty_label = QLabel("No installed fonts found.", self._list_container)
@@ -346,6 +565,13 @@ class SystemView(QWidget):
         main_layout.addWidget(self._scroll_area, stretch=1)
 
         self.setLayout(main_layout)
+
+    def showEvent(self, event) -> None:
+        """Auto-scan local fonts when the Installed Fonts tab is opened."""
+        super().showEvent(event)
+        if not self._has_scanned_on_open:
+            self._has_scanned_on_open = True
+            self.trigger_scan_and_sync()
 
     def _on_search_query_changed(self, query: str) -> None:
         self._query = query.strip().lower()
@@ -363,16 +589,14 @@ class SystemView(QWidget):
         self._metaglyph_only = checked
         self.trigger_refresh()
 
-    def _on_scan_clicked(self) -> None:
-        self.scan_requested.emit()
-        self.trigger_scan_and_sync()
-
     def _on_select_all_toggled(self, checked: bool) -> None:
         self.set_all_selected(checked)
 
     def set_all_selected(self, selected: bool) -> None:
         for card in self._card_widgets:
             card.set_selected(selected)
+        for family_widget in self._family_widgets:
+            family_widget._update_family_checkbox()
         self._update_selection_state()
 
     def get_selected_items(self) -> list[InstalledFont | SystemFontCacheEntry]:
@@ -415,19 +639,15 @@ class SystemView(QWidget):
 
         try:
             self._is_scanning = True
-            self._scan_btn.setEnabled(False)
-            self._scan_btn.setText("⏳ Scanning...")
             await self.detector.scan_and_sync(self.repository)
             await self.refresh_installed_async()
         except Exception as exc:
             logger.error("Failed to scan system fonts: %s", exc)
         finally:
             self._is_scanning = False
-            self._scan_btn.setEnabled(True)
-            self._scan_btn.setText("🔍  Scan Local Fonts")
 
     async def refresh_installed_async(self) -> None:
-        """Retrieve installed and system fonts from SQLite repository."""
+        """Retrieve installed and system fonts from SQLite repository with family grouping."""
         if not self.repository:
             return
 
@@ -437,10 +657,6 @@ class SystemView(QWidget):
                 scope=self._filter_scope, metaglyph_only=self._metaglyph_only
             )
 
-            # Apply Metaglyph Only filter to installed if set
-            if self._metaglyph_only:
-                system_fonts = [f for f in system_fonts if f.is_metaglyph_managed]
-
             # Filter by search query if any
             if self._query:
                 installed = [
@@ -449,13 +665,13 @@ class SystemView(QWidget):
                 ]
                 system_fonts = [
                     f for f in system_fonts
-                    if self._query in f.family_name.lower() or self._query in f.file_path.lower()
+                    if self._query in f.family_name.lower() or self._query in getattr(f, "style_name", "").lower() or self._query in f.file_path.lower()
                 ]
 
             self._installed_fonts = installed
             self._system_fonts = system_fonts
 
-            # Clear existing cards and spacers
+            # Clear existing widgets and spacers
             for i in reversed(range(self._list_layout.count())):
                 item = self._list_layout.itemAt(i)
                 if item:
@@ -466,37 +682,93 @@ class SystemView(QWidget):
                         widget.setParent(None)
                         widget.deleteLater()
                     elif not widget:
-                        # Spacer / stretch
                         self._list_layout.removeItem(item)
+
             self._card_widgets.clear()
+            self._family_widgets.clear()
 
-            total_items = len(installed) + (0 if self._metaglyph_only else len(system_fonts))
-            self._empty_label.setVisible(total_items == 0)
+            # Group items by normalized family name
+            # key: normalized_family -> {"display_name": str, "items": list[dict]}
+            families: dict[str, dict] = {}
 
-            # Render Metaglyph-installed items first
-            installed_families = set()
+            # 1. Process Metaglyph-installed fonts
+            installed_paths: set[str] = set()
             for inst in installed:
-                installed_families.add(inst.family_name)
-                card = SystemFontItemWidget(item=inst, is_managed=True, parent=self._list_container)
-                card.selection_changed.connect(self._on_card_selection_changed)
-                card.uninstall_requested.connect(self._on_single_uninstall_requested)
-                self._list_layout.addWidget(card)
-                self._card_widgets.append(card)
+                norm_fam = normalize_family_name(inst.family_name)
+                if norm_fam not in families:
+                    families[norm_fam] = {"display_name": inst.family_name, "items": []}
 
-            # Render cached system fonts if not metaglyph-only
+                if inst.file_paths:
+                    for p_str in inst.file_paths:
+                        installed_paths.add(p_str)
+                        fam, style, _ = extract_font_names(Path(p_str))
+                        families[norm_fam]["items"].append({
+                            "item": inst,
+                            "family_name": inst.family_name,
+                            "style_name": style,
+                            "file_path": p_str,
+                            "is_managed": True,
+                        })
+                else:
+                    families[norm_fam]["items"].append({
+                        "item": inst,
+                        "family_name": inst.family_name,
+                        "style_name": "Regular",
+                        "file_path": "",
+                        "is_managed": True,
+                    })
+
+            # 2. Process cached system fonts (skipping paths already accounted for in installed)
             if not self._metaglyph_only:
                 for sf in system_fonts:
-                    if sf.family_name in installed_families:
+                    if sf.file_path in installed_paths:
                         continue
+                    norm_fam = normalize_family_name(sf.family_name)
+                    if norm_fam not in families:
+                        families[norm_fam] = {"display_name": sf.family_name, "items": []}
+
+                    families[norm_fam]["items"].append({
+                        "item": sf,
+                        "family_name": sf.family_name,
+                        "style_name": getattr(sf, "style_name", "Regular") or "Regular",
+                        "file_path": sf.file_path,
+                        "is_managed": sf.is_metaglyph_managed,
+                    })
+
+            # Clean up empty families (where all files might have been removed)
+            families = {k: v for k, v in families.items() if v["items"]}
+
+            total_items = sum(len(f["items"]) for f in families.values())
+            self._empty_label.setVisible(total_items == 0)
+
+            # Sort families alphabetically
+            sorted_family_keys = sorted(families.keys(), key=lambda k: families[k]["display_name"].lower())
+
+            for norm_key in sorted_family_keys:
+                fam_info = families[norm_key]
+                family_widget = SystemFontFamilyWidget(family_name=fam_info["display_name"], parent=self._list_container)
+
+                # Sort variants within family logically
+                sorted_items = sorted(fam_info["items"], key=lambda it: _variant_sort_order(it["style_name"]))
+
+                for item_dict in sorted_items:
                     card = SystemFontItemWidget(
-                        item=sf, is_managed=sf.is_metaglyph_managed, parent=self._list_container
+                        item=item_dict["item"],
+                        family_name=item_dict["family_name"],
+                        style_name=item_dict["style_name"],
+                        file_path=item_dict["file_path"],
+                        is_managed=item_dict["is_managed"],
+                        parent=family_widget.cards_container,
                     )
                     card.selection_changed.connect(self._on_card_selection_changed)
                     card.uninstall_requested.connect(self._on_single_uninstall_requested)
-                    self._list_layout.addWidget(card)
+                    family_widget.add_card(card)
                     self._card_widgets.append(card)
 
-            if self._card_widgets:
+                self._list_layout.addWidget(family_widget)
+                self._family_widgets.append(family_widget)
+
+            if self._family_widgets:
                 self._list_layout.addStretch(1)
 
             self._update_selection_state()
@@ -506,8 +778,8 @@ class SystemView(QWidget):
 
     def _on_single_uninstall_requested(self, item: object) -> None:
         """Handle individual font uninstall button click with confirmation."""
-        family_name = item.family_name
-        msg = f"Are you sure you want to uninstall '{family_name}'?\nThis will remove the font files from your system."
+        family_name = getattr(item, "family_name", "Font")
+        msg = f"Are you sure you want to uninstall '{family_name}'?\nThis will remove the font file(s) from your system."
 
         reply = QMessageBox.question(
             self,
@@ -529,6 +801,8 @@ class SystemView(QWidget):
         try:
             if isinstance(item, InstalledFont):
                 res = await self.uninstaller.uninstall_installed_font(item)
+                if self.repository:
+                    await self.repository.delete_system_font_cache_by_paths(item.file_paths)
                 self.font_uninstalled.emit(item.font_id, item.install_scope)
             elif isinstance(item, SystemFontCacheEntry):
                 norm_id = normalize_family_name(item.family_name)
@@ -538,6 +812,8 @@ class SystemView(QWidget):
                     file_paths=[Path(item.file_path)],
                     scope=item.scope,
                 )
+                if self.repository:
+                    await self.repository.delete_system_font_cache_by_paths([item.file_path])
                 self.font_uninstalled.emit(norm_id, item.scope)
 
             await self.refresh_installed_async()
@@ -585,23 +861,36 @@ class SystemView(QWidget):
 
         try:
             installed_records: list[InstalledFont] = []
+            seen_ids: set[tuple[str, str]] = set()
+            all_paths: list[str] = []
+
             for item in items:
                 if isinstance(item, InstalledFont):
-                    installed_records.append(item)
+                    key = (item.font_id, item.install_scope)
+                    all_paths.extend(item.file_paths)
+                    if key not in seen_ids:
+                        seen_ids.add(key)
+                        installed_records.append(item)
                 elif isinstance(item, SystemFontCacheEntry):
-                    # Convert cache entry to temporary InstalledFont record for uninstaller
-                    installed_records.append(
-                        InstalledFont(
-                            font_id=normalize_family_name(item.family_name),
-                            family_name=item.family_name,
-                            provider="system",
-                            install_scope=item.scope,
-                            installed_at=item.last_scanned_at,
-                            file_paths=[item.file_path],
+                    norm_id = normalize_family_name(item.family_name)
+                    key = (norm_id, item.scope)
+                    all_paths.append(item.file_path)
+                    if key not in seen_ids:
+                        seen_ids.add(key)
+                        installed_records.append(
+                            InstalledFont(
+                                font_id=norm_id,
+                                family_name=item.family_name,
+                                provider="system",
+                                install_scope=item.scope,
+                                installed_at=item.last_scanned_at,
+                                file_paths=[item.file_path],
+                            )
                         )
-                    )
 
             results = await self.uninstaller.batch_uninstall(installed_records)
+            if self.repository:
+                await self.repository.delete_system_font_cache_by_paths(all_paths)
             self.batch_uninstall_completed.emit(results)
             await self.refresh_installed_async()
             return results

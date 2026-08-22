@@ -538,14 +538,16 @@ class FontRepository:
 
             for entry in entries:
                 is_managed = 1 if (entry.file_path in managed_paths or entry.is_metaglyph_managed) else 0
+                style_name = getattr(entry, "style_name", "Regular") or "Regular"
                 await conn.execute(
                     """
                     INSERT INTO system_font_cache (
-                        family_name, postscript_name, file_path,
+                        family_name, style_name, postscript_name, file_path,
                         scope, is_metaglyph_managed, last_scanned_at
-                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(file_path) DO UPDATE SET
                         family_name = excluded.family_name,
+                        style_name = excluded.style_name,
                         postscript_name = excluded.postscript_name,
                         scope = excluded.scope,
                         is_metaglyph_managed = excluded.is_metaglyph_managed,
@@ -553,6 +555,7 @@ class FontRepository:
                     """,
                     (
                         entry.family_name,
+                        style_name,
                         entry.postscript_name,
                         entry.file_path,
                         entry.scope,
@@ -578,13 +581,14 @@ class FontRepository:
 
             where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
             cursor = await conn.execute(
-                f"SELECT * FROM system_font_cache {where_sql} ORDER BY family_name ASC",
+                f"SELECT * FROM system_font_cache {where_sql} ORDER BY family_name ASC, style_name ASC",
                 tuple(params),
             )
             rows = await cursor.fetchall()
             return [
                 SystemFontCacheEntry(
                     family_name=row["family_name"],
+                    style_name=row["style_name"] if "style_name" in row.keys() and row["style_name"] else "Regular",
                     postscript_name=row["postscript_name"],
                     file_path=row["file_path"],
                     scope=row["scope"],
@@ -593,6 +597,18 @@ class FontRepository:
                 )
                 for row in rows
             ]
+
+    async def delete_system_font_cache_by_paths(self, file_paths: list[str]) -> None:
+        """Delete specific file paths from system font cache."""
+        if not file_paths:
+            return
+        async with self._db.connection() as conn:
+            placeholders = ",".join("?" for _ in file_paths)
+            await conn.execute(
+                f"DELETE FROM system_font_cache WHERE file_path IN ({placeholders})",
+                file_paths,
+            )
+            await conn.commit()
 
     async def link_nerd_fonts(self) -> int:
         """Scan catalog and link standard fonts with counterpart Nerd Fonts."""

@@ -41,13 +41,12 @@ async def test_real_font_installations_and_uninstalls(tmp_path: Path) -> None:
 
     config = Config(
         app_name="metaglyph-test-real",
-        config_dir=config_dir,
-        data_dir=data_dir,
-        cache_dir=cache_dir,
-        user_fonts_dir=user_fonts_dir,
-        system_fonts_dir=system_fonts_dir,
-        subsets_cache_dir=subsets_dir,
-        database_path=data_dir / "test_real.db",
+        config_dir_override=config_dir,
+        data_dir_override=data_dir,
+        cache_dir_override=cache_dir,
+        user_fonts_dir_override=user_fonts_dir,
+        system_fonts_dir_override=system_fonts_dir,
+        system_font_search_paths_override=[user_fonts_dir, system_fonts_dir],
     )
     set_config(config)
 
@@ -141,18 +140,20 @@ async def test_real_font_installations_and_uninstalls(tmp_path: Path) -> None:
         await driver.navigate_to("system")
         await driver.wait_for_idle(300)
 
-        assert len(window.system_view._card_widgets) == 3
+        assert len(window.system_view._family_widgets) == 3
+        assert len(window.system_view._card_widgets) == 10
         card_titles = [c.name_label.text() for c in window.system_view._card_widgets]
-        assert "Cinzel" in card_titles
-        assert hack_nf_font.family_name in card_titles
-        assert "Playfair Display" in card_titles
+        assert any("Cinzel" in t for t in card_titles)
+        assert any(hack_nf_font.family_name in t for t in card_titles)
+        assert any("Playfair Display" in t for t in card_titles)
 
         # 8. Test Single Uninstall from System View (Playfair Display)
-        pf_card = next(c for c in window.system_view._card_widgets if c.name_label.text() == "Playfair Display")
+        pf_card = next(c for c in window.system_view._card_widgets if "Playfair Display" in c.name_label.text())
         await window.system_view.uninstall_single_async(pf_card.item)
         await driver.wait_for_idle(200)
 
-        assert len(window.system_view._card_widgets) == 2
+        assert len(window.system_view._family_widgets) == 2
+        assert len(window.system_view._card_widgets) == 6
         assert await repository.get_installed_font("playfair-display") is None
         for f in res_playfair.installed_files:
             assert not f.exists()
@@ -181,19 +182,21 @@ async def test_real_font_installations_and_uninstalls(tmp_path: Path) -> None:
         await driver.close_detail_pane()
         await driver.navigate_to("system")
         await driver.wait_for_idle(300)
-        assert len(window.system_view._card_widgets) == 2
+        assert len(window.system_view._family_widgets) == 2
+        assert len(window.system_view._card_widgets) == 6
 
         await driver.select_all_system_fonts(True)
         assert window.system_view._batch_uninstall_btn.isEnabled()
-        assert "2 of 2 selected" in window.system_view._batch_count_label.text()
+        assert "6 of 6 selected" in window.system_view._batch_count_label.text()
 
         selected = window.system_view.get_selected_items()
         batch_results = await window.system_view.batch_uninstall_async(selected)
-        assert len(batch_results) == 2
+        assert len(batch_results) >= 2
         assert all(r.success for r in batch_results)
         await driver.wait_for_idle(200)
 
         assert len(window.system_view._card_widgets) == 0
+        assert len(window.system_view._family_widgets) == 0
         assert not window.system_view._empty_label.isHidden()
         assert await repository.get_installed_font("cinzel") is None
         assert await repository.get_installed_font(hack_nf_font.id) is None

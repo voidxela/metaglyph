@@ -105,7 +105,8 @@ async def test_system_view_search_and_scope_filtering(
     view._search_bar._on_debounce_timeout()
     await view.refresh_installed_async()
     assert len(view._card_widgets) == 1
-    assert view._card_widgets[0].name_label.text() == "Fira Code"
+    assert "Fira Code" in view._card_widgets[0].name_label.text()
+    assert "Regular" in view._card_widgets[0].name_label.text()
 
     # Reset search
     view._search_bar.clear()
@@ -116,13 +117,13 @@ async def test_system_view_search_and_scope_filtering(
     view._on_scope_clicked("User")
     await view.refresh_installed_async()
     assert len(view._card_widgets) == 1
-    assert view._card_widgets[0].name_label.text() == "Fira Code"
+    assert "Fira Code" in view._card_widgets[0].name_label.text()
 
     # Filter by System Scope
     view._on_scope_clicked("System")
     await view.refresh_installed_async()
     assert len(view._card_widgets) == 1
-    assert view._card_widgets[0].name_label.text() == "Roboto"
+    assert "Roboto" in view._card_widgets[0].name_label.text()
 
 
 @pytest.mark.asyncio
@@ -142,6 +143,7 @@ async def test_system_view_card_details_toggle(
     assert card.details_box.isHidden()
     assert card.expand_btn.text() == "Details"
 
+    # Click details button
     card.expand_btn.click()
     assert not card.details_box.isHidden()
     assert card.expand_btn.text() == "Hide"
@@ -149,6 +151,12 @@ async def test_system_view_card_details_toggle(
     card.expand_btn.click()
     assert card.details_box.isHidden()
     assert card.expand_btn.text() == "Details"
+
+    # Row click selection
+    card.set_row_selected(True)
+    assert not card.details_box.isHidden()
+    card.set_row_selected(False)
+    assert card.details_box.isHidden()
 
 
 @pytest.mark.asyncio
@@ -281,3 +289,86 @@ async def test_system_view_batch_uninstall_cache_entries_complex_name(
     assert results[0].success is True
     assert results[0].font_id == "garamond-pro"
     assert not f.exists()
+
+
+@pytest.mark.asyncio
+async def test_system_view_family_grouping_and_variant_names(
+    repository: FontRepository,
+) -> None:
+    """Verify multiple variants of the same font family are grouped under a single family widget."""
+    now = 1700000000
+    await repository.sync_system_font_cache([
+        SystemFontCacheEntry(
+            family_name="Roboto",
+            style_name="Regular",
+            postscript_name="Roboto-Regular",
+            file_path="/usr/share/fonts/Roboto-Regular.ttf",
+            scope="System",
+            last_scanned_at=now,
+        ),
+        SystemFontCacheEntry(
+            family_name="Roboto",
+            style_name="Bold",
+            postscript_name="Roboto-Bold",
+            file_path="/usr/share/fonts/Roboto-Bold.ttf",
+            scope="System",
+            last_scanned_at=now,
+        ),
+        SystemFontCacheEntry(
+            family_name="Roboto",
+            style_name="Italic",
+            postscript_name="Roboto-Italic",
+            file_path="/usr/share/fonts/Roboto-Italic.ttf",
+            scope="System",
+            last_scanned_at=now,
+        ),
+        SystemFontCacheEntry(
+            family_name="Fira Code",
+            style_name="Regular",
+            postscript_name="FiraCode-Regular",
+            file_path="/usr/share/fonts/FiraCode-Regular.ttf",
+            scope="System",
+            last_scanned_at=now,
+        ),
+    ])
+
+    view = SystemView(repository=repository)
+    await view.refresh_installed_async()
+
+    # Total variants = 4
+    assert len(view._card_widgets) == 4
+    # Total family groups = 2 (Fira Code and Roboto)
+    assert len(view._family_widgets) == 2
+
+    # Check first family is Fira Code with 1 variant
+    assert view._family_widgets[0].family_name == "Fira Code"
+    assert len(view._family_widgets[0].cards) == 1
+    assert "Fira Code — Regular" in view._family_widgets[0].cards[0].name_label.text()
+
+    # Check second family is Roboto with 3 variants
+    assert view._family_widgets[1].family_name == "Roboto"
+    assert len(view._family_widgets[1].cards) == 3
+    variant_titles = [c.name_label.text() for c in view._family_widgets[1].cards]
+    assert "Roboto — Regular" in variant_titles
+    assert "Roboto — Bold" in variant_titles
+    assert "Roboto — Italic" in variant_titles
+
+    # Test family checkbox toggles all variants in that family
+    view._family_widgets[1].family_checkbox.setChecked(True)
+    assert all(c.is_selected() for c in view._family_widgets[1].cards)
+    assert not view._family_widgets[0].cards[0].is_selected()
+    assert "3 of 4 selected" in view._batch_count_label.text()
+
+
+@pytest.mark.asyncio
+async def test_system_view_auto_scan_on_open(
+    repository: FontRepository,
+) -> None:
+    """Verify local font scan is automatically scheduled when view is shown."""
+    detector = FontDetector()
+    view = SystemView(repository=repository, detector=detector)
+    assert view._has_scanned_on_open is False
+
+    # Simulate tab open / show
+    view.show()
+    assert view._has_scanned_on_open is True

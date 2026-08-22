@@ -19,18 +19,47 @@ from metaglyph.installer.base import is_font_file
 logger = get_logger("installer.detector")
 
 
-def extract_font_names(file_path: Path) -> tuple[str, str | None]:
-    """Extract family name and postscript name from a font file using fontTools."""
+def _guess_family_and_style(stem: str) -> tuple[str, str, str | None]:
+    """Fallback parser guessing family and style from filename stem."""
+    if "-" in stem:
+        parts = stem.split("-", 1)
+        family = parts[0].strip()
+        style = parts[1].strip()
+        # Clean up common style abbreviations
+        style_map = {
+            "r": "Regular",
+            "b": "Bold",
+            "i": "Italic",
+            "bi": "Bold Italic",
+            "bolditalic": "Bold Italic",
+            "bold_italic": "Bold Italic",
+            "extrabold": "ExtraBold",
+            "semibold": "SemiBold",
+            "black": "Black",
+            "light": "Light",
+            "medium": "Medium",
+            "thin": "Thin",
+        }
+        clean_style = style_map.get(style.lower(), style)
+        return family or stem, clean_style or "Regular", stem
+
+    return stem, "Regular", None
+
+
+def extract_font_names(file_path: Path) -> tuple[str, str, str | None]:
+    """Extract family name, style/variant name, and postscript name from a font file."""
     try:
         with TTFont(str(file_path), fontNumber=0, lazy=True) as tt:
             name_table = tt.get("name")
             if not name_table:
-                return file_path.stem, None
+                return _guess_family_and_style(file_path.stem)
 
             family_name: str | None = None
+            style_name: str | None = None
             postscript_name: str | None = None
+            typographic_family: str | None = None
+            typographic_style: str | None = None
 
-            # Prefer Typographic Family (Name ID 16) over Font Family (Name ID 1)
             for record in name_table.names:
                 try:
                     text = record.toUnicode().strip()
@@ -40,16 +69,36 @@ def extract_font_names(file_path: Path) -> tuple[str, str | None]:
                 if not text:
                     continue
 
+                # Name ID 16: Typographic Family / Preferred Family
                 if record.nameID == 16:
-                    family_name = text
+                    typographic_family = text
+                # Name ID 17: Typographic Subfamily / Preferred Subfamily
+                elif record.nameID == 17:
+                    typographic_style = text
+                # Name ID 1: Font Family
                 elif record.nameID == 1 and family_name is None:
                     family_name = text
+                # Name ID 2: Font Subfamily
+                elif record.nameID == 2 and style_name is None:
+                    style_name = text
+                # Name ID 6: PostScript Name
                 elif record.nameID == 6 and postscript_name is None:
                     postscript_name = text
 
-            return family_name or file_path.stem, postscript_name
+            final_family = typographic_family or family_name
+            final_style = typographic_style or style_name
+
+            if not final_family:
+                final_family, guessed_style, _ = _guess_family_and_style(file_path.stem)
+                if not final_style:
+                    final_style = guessed_style
+
+            if not final_style:
+                final_style = "Regular"
+
+            return final_family, final_style, postscript_name
     except Exception:
-        return file_path.stem, None
+        return _guess_family_and_style(file_path.stem)
 
 
 class FontDetector:
@@ -113,12 +162,13 @@ class FontDetector:
                             if not is_font_file(p):
                                 continue
 
-                            family_name, postscript = extract_font_names(p)
+                            family_name, style_name, postscript = extract_font_names(p)
                             scope = self.determine_scope(p)
                             is_metaglyph = "metaglyph" in str(p).lower()
 
                             discovered[abs_path_str] = SystemFontCacheEntry(
                                 family_name=family_name,
+                                style_name=style_name,
                                 postscript_name=postscript,
                                 file_path=abs_path_str,
                                 scope=scope,

@@ -57,8 +57,9 @@ def test_extract_font_names(tmp_path: Path) -> None:
     font_file = tmp_path / "CustomFamily-Bold.ttf"
     font_file.write_bytes(synthesize_test_font_bytes("Custom Family", "Bold"))
 
-    family, postscript = extract_font_names(font_file)
+    family, style, postscript = extract_font_names(font_file)
     assert family == "Custom Family"
+    assert style == "Bold"
 
 
 @pytest.mark.asyncio
