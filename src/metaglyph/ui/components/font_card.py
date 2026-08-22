@@ -84,7 +84,7 @@ class FontCard(QFrame):
 
         # Nerd Font Badge if available
         if self.font.has_nerd_font:
-            self._nerd_badge = QLabel("󰊤 Nerd Font", header_widget)
+            self._nerd_badge = QLabel("◈ Nerd Font", header_widget)
             self._nerd_badge.setObjectName("fontNerdBadge")
             header_layout.addWidget(self._nerd_badge)
 

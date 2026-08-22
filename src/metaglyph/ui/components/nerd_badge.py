@@ -48,7 +48,7 @@ class NerdFontBadge(QFrame):
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(6)
 
-        self._title_label = QLabel("󰊤 Nerd Font Counterpart Available", self)
+        self._title_label = QLabel("◈ Nerd Font Counterpart Available", self)
         self._title_label.setObjectName("nerdBadgeTitle")
         self._title_label.setStyleSheet("color: #c084fc; font-weight: 700; font-size: 12px;")
         header_layout.addWidget(self._title_label)
@@ -120,14 +120,14 @@ class NerdFontBadge(QFrame):
             # Viewing a Nerd Font
             base_slug, _ = extract_nerd_font_counterpart(font.family_name)
             self._counterpart_slug = base_slug
-            self._title_label.setText("󰊤 Nerd Font Patched Version")
+            self._title_label.setText("◈ Nerd Font Patched Version")
             self._desc_label.setText("Patched with Devicons, FontAwesome, Octicons & Powerline glyphs.")
             self._switch_btn.setText("View Original Standard Font")
             self.setVisible(True)
         elif font.has_nerd_font or font.nerd_font_slug:
             # Viewing a standard font with counterpart
             self._counterpart_slug = font.nerd_font_slug or f"{font.id}-nerd-font"
-            self._title_label.setText("󰊤 Nerd Font Counterpart Available")
+            self._title_label.setText("◈ Nerd Font Counterpart Available")
             self._desc_label.setText(
                 "Includes developer icons, powerline glyphs, and coding ligatures."
             )
