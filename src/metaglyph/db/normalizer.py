@@ -292,11 +292,16 @@ FEATURED_FONT_NAMES: list[str] = [
 def is_featured_font(font_id: str, family_name: str | None = None) -> bool:
     """Check if a font belongs to the manually curated Featured category.
 
-    Matches by font ID, canonical slug, family name, or base counterpart slug.
+    Matches by font ID, canonical slug, family name, base counterpart slug, or prefix.
     """
     norm_id = normalize_family_name(font_id)
     if norm_id in FEATURED_FONT_SLUGS or font_id.lower().strip() in FEATURED_FONT_SLUGS:
         return True
+
+    base_id, _ = extract_nerd_font_counterpart(font_id)
+    if base_id in FEATURED_FONT_SLUGS:
+        return True
+
     if family_name:
         norm_fam = normalize_family_name(family_name)
         if norm_fam in FEATURED_FONT_SLUGS or family_name.strip().lower() in FEATURED_FONT_NAMES:
@@ -304,5 +309,28 @@ def is_featured_font(font_id: str, family_name: str | None = None) -> bool:
         base_slug, _ = extract_nerd_font_counterpart(family_name)
         if base_slug in FEATURED_FONT_SLUGS:
             return True
+
+    featured_prefixes = (
+        "iosevka",
+        "iosevkaterm",
+        "fira-code",
+        "firacode",
+        "meslo",
+        "bitstream-vera",
+        "crimson-text",
+        "crimson-pro",
+        "crimson",
+        "gandhi-serif",
+        "plus-jakarta-sans",
+        "arimo",
+        "barlow-condensed",
+    )
+    for pfx in featured_prefixes:
+        if norm_id.startswith(pfx) or font_id.lower().startswith(pfx):
+            return True
+        if family_name:
+            if normalize_family_name(family_name).startswith(pfx) or family_name.lower().startswith(pfx):
+                return True
+
     return False
 

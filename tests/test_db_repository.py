@@ -164,7 +164,7 @@ async def test_search_and_filtering(
     assert total == 1
     assert results[0].id == "inter"
 
-    # Search by Featured curated category
+    # Search by Featured curated category (including IosevkaTerm and Meslo Nerd Fonts)
     sample_font_fira = Font(
         id="fira-code",
         family_name="Fira Code",
@@ -175,13 +175,40 @@ async def test_search_and_filtering(
         primary_provider="fontsource",
         last_synced_at=1700000000,
     )
-    await repository.upsert_font(sample_font_fira)
+    sample_font_iosevka_term = Font(
+        id="iosevka-term-nerd-font",
+        family_name="IosevkaTerm Nerd Font",
+        category="monospace",
+        curated_category="Code",
+        is_variable=False,
+        has_nerd_font=True,
+        nerd_font_slug="iosevka-term-nerd-font",
+        primary_provider="nerd_fonts",
+        last_synced_at=1700000000,
+    )
+    sample_font_meslo = Font(
+        id="meslo-lg-nerd-font",
+        family_name="MesloLG Nerd Font",
+        category="monospace",
+        curated_category="Code",
+        is_variable=False,
+        has_nerd_font=True,
+        nerd_font_slug="meslo-lg-nerd-font",
+        primary_provider="nerd_fonts",
+        last_synced_at=1700000000,
+    )
+    await repository.upsert_fonts([sample_font_fira, sample_font_iosevka_term, sample_font_meslo])
 
     featured_results, featured_total = await repository.search_fonts(
         FontFilter(curated_categories=["Featured"])
     )
-    assert featured_total == 1
-    assert featured_results[0].id == "fira-code"
+    assert featured_total == 3
+    featured_ids = {r.id for r in featured_results}
+    assert "fira-code" in featured_ids
+    assert "iosevka-term-nerd-font" in featured_ids
+    assert "meslo-lg-nerd-font" in featured_ids
+    assert "jetbrains-mono" not in featured_ids
+    assert "inter" not in featured_ids
 
     # Search by provider
     results, total = await repository.search_fonts(
@@ -194,13 +221,13 @@ async def test_search_and_filtering(
     results, total = await repository.search_fonts(
         FontFilter(has_nerd_font=True)
     )
-    assert total == 2
+    assert total == 4
 
     # Pagination test
     results, total = await repository.search_fonts(
         FontFilter(limit=1, offset=1)
     )
-    assert total == 3
+    assert total == 5
     assert len(results) == 1
 
 
@@ -221,12 +248,38 @@ async def test_category_counts(
         primary_provider="fontsource",
         last_synced_at=1700000000,
     )
-    await repository.upsert_fonts([sample_font_jetbrains, sample_font_inter, sample_font_fira])
+    sample_font_iosevka_term = Font(
+        id="iosevka-term-nerd-font",
+        family_name="IosevkaTerm Nerd Font",
+        category="monospace",
+        curated_category="Code",
+        is_variable=False,
+        has_nerd_font=True,
+        primary_provider="nerd_fonts",
+        last_synced_at=1700000000,
+    )
+    sample_font_meslo = Font(
+        id="meslo-lg-nerd-font",
+        family_name="MesloLG Nerd Font",
+        category="monospace",
+        curated_category="Code",
+        is_variable=False,
+        has_nerd_font=True,
+        primary_provider="nerd_fonts",
+        last_synced_at=1700000000,
+    )
+    await repository.upsert_fonts([
+        sample_font_jetbrains,
+        sample_font_inter,
+        sample_font_fira,
+        sample_font_iosevka_term,
+        sample_font_meslo,
+    ])
     counts = await repository.get_curated_category_counts()
 
-    assert counts.get("Code") == 2
+    assert counts.get("Code") == 4
     assert counts.get("Interface") == 1
-    assert counts.get("Featured") == 1
+    assert counts.get("Featured") == 3
 
 
 @pytest.mark.asyncio

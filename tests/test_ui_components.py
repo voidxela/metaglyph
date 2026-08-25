@@ -297,7 +297,33 @@ async def test_discover_view_category_clicks_and_counts(
         primary_provider="fontsource",
         last_synced_at=1700000000,
     )
-    await repository.upsert_fonts([sample_font_jetbrains, sample_font_inter, sample_font_fira])
+    sample_font_iosevka_term = Font(
+        id="iosevka-term-nerd-font",
+        family_name="IosevkaTerm Nerd Font",
+        category="monospace",
+        curated_category="Code",
+        is_variable=False,
+        has_nerd_font=True,
+        primary_provider="nerd_fonts",
+        last_synced_at=1700000000,
+    )
+    sample_font_meslo = Font(
+        id="meslo-lg-nerd-font",
+        family_name="MesloLG Nerd Font",
+        category="monospace",
+        curated_category="Code",
+        is_variable=False,
+        has_nerd_font=True,
+        primary_provider="nerd_fonts",
+        last_synced_at=1700000000,
+    )
+    await repository.upsert_fonts([
+        sample_font_jetbrains,
+        sample_font_inter,
+        sample_font_fira,
+        sample_font_iosevka_term,
+        sample_font_meslo,
+    ])
 
     discover = DiscoverView(repository=repository)
     assert len(discover._category_cards) == 10
@@ -320,8 +346,8 @@ async def test_discover_view_category_clicks_and_counts(
 
     # Refresh counts
     await discover.refresh_stats()
-    assert "1 fonts" in discover._category_cards["Featured"]._count_badge.text()
-    assert "2 fonts" in discover._category_cards["Code"]._count_badge.text()
+    assert "3 fonts" in discover._category_cards["Featured"]._count_badge.text()
+    assert "4 fonts" in discover._category_cards["Code"]._count_badge.text()
     assert "1 fonts" in discover._category_cards["Interface"]._count_badge.text()
 
 

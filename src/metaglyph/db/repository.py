@@ -369,8 +369,41 @@ class FontRepository:
         """Construct SQL WHERE clause and parameters for the Featured curated category."""
         slugs = sorted(FEATURED_FONT_SLUGS)
         names = sorted({n.lower() for n in FEATURED_FONT_NAMES})
+        prefix_patterns = [
+            "iosevka%",
+            "iosevkaterm%",
+            "fira-code%",
+            "firacode%",
+            "meslo%",
+            "bitstream-vera%",
+            "crimson-text%",
+            "crimson-pro%",
+            "crimson%",
+            "gandhi-serif%",
+            "plus-jakarta-sans%",
+            "arimo%",
+            "barlow-condensed%",
+        ]
+        name_prefix_patterns = [
+            "iosevka%",
+            "iosevkaterm%",
+            "fira code%",
+            "firacode%",
+            "meslo%",
+            "bitstream vera%",
+            "crimson text%",
+            "crimson pro%",
+            "crimson%",
+            "gandhi serif%",
+            "plus jakarta sans%",
+            "arimo%",
+            "barlow condensed%",
+        ]
+
         placeholders_slugs = ",".join("?" for _ in slugs)
         placeholders_names = ",".join("?" for _ in names)
+        id_like_clauses = " OR ".join("LOWER(id) LIKE ?" for _ in prefix_patterns)
+        name_like_clauses = " OR ".join("LOWER(family_name) LIKE ?" for _ in name_prefix_patterns)
 
         clause = (
             f"("
@@ -378,10 +411,19 @@ class FontRepository:
             f"OR LOWER(family_name) IN ({placeholders_names}) "
             f"OR REPLACE(LOWER(family_name), ' ', '-') IN ({placeholders_slugs}) "
             f"OR nerd_font_slug IN ({placeholders_slugs}) "
+            f"OR {id_like_clauses} "
+            f"OR {name_like_clauses} "
             f"OR LOWER(curated_category) = 'featured'"
             f")"
         )
-        params = list(slugs) + list(names) + list(slugs) + list(slugs)
+        params = (
+            list(slugs)
+            + list(names)
+            + list(slugs)
+            + list(slugs)
+            + list(prefix_patterns)
+            + list(name_prefix_patterns)
+        )
         return clause, params
 
     async def search_fonts(self, filter_params: FontFilter) -> tuple[list[Font], int]:

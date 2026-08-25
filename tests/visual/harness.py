@@ -514,6 +514,46 @@ class VisualHarness:
                 ],
             ),
             Font(
+                id="iosevka-term-nerd-font",
+                family_name="IosevkaTerm Nerd Font",
+                category="monospace",
+                curated_category="Code",
+                is_variable=False,
+                has_nerd_font=False,
+                primary_provider="nerd_fonts",
+                last_synced_at=1700000000,
+                variants=[
+                    FontVariant(
+                        font_id="iosevka-term-nerd-font",
+                        provider="nerd_fonts",
+                        style="normal",
+                        weight=400,
+                        file_format="ttf",
+                        download_url="https://example.com/iosevka-term-400.ttf",
+                    )
+                ],
+            ),
+            Font(
+                id="meslo-lg-nerd-font",
+                family_name="MesloLG Nerd Font",
+                category="monospace",
+                curated_category="Code",
+                is_variable=False,
+                has_nerd_font=False,
+                primary_provider="nerd_fonts",
+                last_synced_at=1700000000,
+                variants=[
+                    FontVariant(
+                        font_id="meslo-lg-nerd-font",
+                        provider="nerd_fonts",
+                        style="normal",
+                        weight=400,
+                        file_format="ttf",
+                        download_url="https://example.com/meslo-400.ttf",
+                    )
+                ],
+            ),
+            Font(
                 id="playfair-display",
                 family_name="Playfair Display",
                 category="serif",
