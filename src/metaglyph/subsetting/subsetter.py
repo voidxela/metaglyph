@@ -40,6 +40,9 @@ def create_subset_options() -> Options:
     return options
 
 
+VALID_FONT_MAGICS = (b"\x00\x01\x00\x00", b"OTTO", b"true", b"typ1", b"ttcf")
+
+
 def subset_font_bytes(font_bytes: bytes, text: str) -> bytes:
     """Create a micro-subset TTF/OTF containing only glyphs in `text`.
 
@@ -48,7 +51,7 @@ def subset_font_bytes(font_bytes: bytes, text: str) -> bytes:
         text: Sample characters to include in the subset.
 
     Returns:
-        Bytes of the subsetted font binary.
+        Bytes of the subsetted font binary (or raw bytes if subsetting fails).
     """
     if not text:
         text = " "
@@ -64,7 +67,7 @@ def subset_font_bytes(font_bytes: bytes, text: str) -> bytes:
         font.save(out_buffer)
         return out_buffer.getvalue()
     except Exception as exc:
-        logger.warning("Failed to subset font bytes: %s. Returning original font.", exc)
+        logger.debug("Subset operation failed: %s. Using original font bytes.", exc)
         return font_bytes
 
 

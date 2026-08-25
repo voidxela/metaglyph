@@ -97,7 +97,7 @@ def test_subset_cache_pruning(temp_dir: Path) -> None:
 
     # Save 4 items
     for i in range(4):
-        p = cache.save_subset(f"font-{i}", f"sample-{i}", f"bytes-{i}".encode(), weight=400, style="normal")
+        p = cache.save_subset(f"font-{i}", f"sample-{i}", b"\x00\x01\x00\x00" + f"bytes-{i}".encode(), weight=400, style="normal")
         # Ensure distinct timestamps
         time.sleep(0.01)
 
@@ -109,8 +109,8 @@ def test_subset_cache_clear(temp_dir: Path) -> None:
     """Verify clear removes all subset files."""
     cache_dir = temp_dir / "clear_cache"
     cache = SubsetCache(cache_dir=cache_dir)
-    cache.save_subset("font-a", "sample", b"123")
-    cache.save_subset("font-b", "sample", b"456")
+    cache.save_subset("font-a", "sample", b"\x00\x01\x00\x00123")
+    cache.save_subset("font-b", "sample", b"\x00\x01\x00\x00456")
 
     assert cache.get_stats()["count"] == 2
     deleted = cache.clear()

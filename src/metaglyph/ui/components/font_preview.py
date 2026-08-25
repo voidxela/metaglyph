@@ -59,12 +59,8 @@ class FontPreviewWidget(QFrame):
         qfont = QFont()
         if self._font_family:
             qfont.setFamily(self._font_family)
-            self._label.setStyleSheet(
-                f'#fontPreviewLabel {{ font-family: "{self._font_family}", sans-serif; }}'
-            )
         else:
             qfont.setStyleHint(QFont.StyleHint.SansSerif)
-            self._label.setStyleSheet("")
 
         qfont.setPointSizeF(self._point_size)
         qfont.setWeight(QFont.Weight(self._weight))

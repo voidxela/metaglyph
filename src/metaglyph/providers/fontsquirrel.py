@@ -32,6 +32,8 @@ BROWSER_HEADERS = {
     "Accept-Language": "en-US,en;q=0.5",
 }
 
+VALID_FONT_MAGICS = (b"\x00\x01\x00\x00", b"OTTO", b"true", b"typ1", b"ttcf")
+
 
 def classify_family(family_name: str, folder_name: str) -> tuple[str, str]:
     """Determine standard category and curated category based on family metadata."""
@@ -308,7 +310,8 @@ class FontSquirrelProvider(BaseFontProvider):
             try:
                 logger.debug("Downloading font preview bytes from %s to %s", dl_url, tmp_path)
                 async with client.stream("GET", dl_url, headers=BROWSER_HEADERS) as resp:
-                    resp.raise_for_status()
+                    if resp.status_code != 200:
+                        raise ValueError(f"HTTP {resp.status_code}")
                     with tmp_path.open("wb") as f:
                         async for chunk in resp.aiter_bytes(chunk_size=65536):
                             f.write(chunk)
@@ -330,8 +333,10 @@ class FontSquirrelProvider(BaseFontProvider):
                                 if "regular" in n_lower or "normal" in n_lower:
                                     chosen = name
                                     break
-                            font_bytes = z.read(chosen)
-                else:
+                            extracted = z.read(chosen)
+                            if any(extracted.startswith(m) for m in VALID_FONT_MAGICS):
+                                font_bytes = extracted
+                elif any(magic.startswith(m) for m in VALID_FONT_MAGICS):
                     raw_data = tmp_path.read_bytes()
                     if len(raw_data) > 0:
                         font_bytes = raw_data
@@ -387,7 +392,10 @@ class FontSquirrelProvider(BaseFontProvider):
                 async with semaphore:
                     try:
                         r = await client.get(var.download_url, headers=BROWSER_HEADERS)
-                        r.raise_for_status()
+                        if r.status_code != 200 or len(r.content) == 0:
+                            raise ValueError(f"HTTP {r.status_code}")
+                        if not any(r.content.startswith(m) for m in VALID_FONT_MAGICS):
+                            raise ValueError("Invalid font binary signature")
                         dest.write_bytes(r.content)
                         logger.info("Saved font variant: %s", dest)
                         return dest

@@ -10,6 +10,8 @@ from metaglyph.core.config import get_config
 
 logger = logging.getLogger(__name__)
 
+VALID_FONT_MAGICS = (b"\x00\x01\x00\x00", b"OTTO", b"true", b"typ1", b"ttcf", b"wOFF", b"wOF2")
+
 
 class SubsetCache:
     """Manages disk caching for micro-subset font files."""
@@ -54,6 +56,17 @@ class SubsetCache:
         filename = self.compute_cache_key(font_id, sample_text, weight, style)
         return self.cache_dir / filename
 
+    def _is_valid_font_file(self, path: Path) -> bool:
+        """Check if file exists, is non-empty, and starts with valid font magic bytes."""
+        if not path.exists() or path.stat().st_size < 4:
+            return False
+        try:
+            with path.open("rb") as f:
+                header = f.read(4)
+                return any(header.startswith(m) for m in VALID_FONT_MAGICS)
+        except OSError:
+            return False
+
     def has_subset(
         self,
         font_id: str,
@@ -63,7 +76,12 @@ class SubsetCache:
     ) -> bool:
         """Check if a valid cached subset exists on disk."""
         path = self.get_path(font_id, sample_text, weight, style)
-        return path.exists() and path.stat().st_size > 0
+        if not path.exists():
+            return False
+        if not self._is_valid_font_file(path):
+            path.unlink(missing_ok=True)
+            return False
+        return True
 
     def get_subset(
         self,
@@ -74,14 +92,17 @@ class SubsetCache:
     ) -> Path | None:
         """Retrieve the path to a cached subset if present, updating its mtime."""
         path = self.get_path(font_id, sample_text, weight, style)
-        if path.exists() and path.stat().st_size > 0:
-            try:
-                logger.debug("Updating access timestamp on cached subset: %s", path)
-                path.touch()
-            except OSError as exc:
-                logger.warning("Failed to update access timestamp on %s: %s", path, exc)
-            return path
-        return None
+        if not path.exists():
+            return None
+        if not self._is_valid_font_file(path):
+            path.unlink(missing_ok=True)
+            return None
+        try:
+            logger.debug("Updating access timestamp on cached subset: %s", path)
+            path.touch()
+        except OSError as exc:
+            logger.warning("Failed to update access timestamp on %s: %s", path, exc)
+        return path
 
     def save_subset(
         self,
@@ -92,6 +113,9 @@ class SubsetCache:
         style: str = "normal",
     ) -> Path:
         """Save subset font bytes to cache and prune if necessary."""
+        if not data or len(data) < 4:
+            raise ValueError("Refusing to cache empty or truncated font data")
+
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         path = self.get_path(font_id, sample_text, weight, style)
         temp_path = path.with_name(f"{path.stem}_{uuid.uuid4().hex[:8]}.tmp")

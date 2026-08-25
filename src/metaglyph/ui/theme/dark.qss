@@ -3,10 +3,17 @@
 /* Global Reset & Base Typography */
 QWidget {
     color: #f1f5f9;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    font-size: 13px;
     selection-background-color: #6366f1;
     selection-color: #ffffff;
+}
+
+/* Base Typography for standard UI controls (exempts font preview labels) */
+QMainWindow, QDialog,
+QPushButton, QLineEdit, QComboBox, QRadioButton, QCheckBox,
+QTabBar, QHeaderView, QTreeView, QListView, QTableView,
+#sidebar, #sidebarTitle, #sidebarSubtitle, #statCard, #filterBar {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 13px;
 }
 
 /* Root Windows, Views, & Main Containers */
