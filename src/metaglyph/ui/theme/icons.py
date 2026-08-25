@@ -6,7 +6,7 @@ from PySide6.QtCore import QByteArray, QSize, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
-# Modern Lucide-style SVG icon path data (viewBox 0 0 24 24, stroke-width 2, round joins)
+# Modern Lucide/SVG icon path data (viewBox 0 0 24 24, stroke-width 2, round joins)
 ICON_SVGS: dict[str, str] = {
     # Navigation and UI controls
     "compass": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -81,15 +81,13 @@ ICON_SVGS: dict[str, str] = {
         <path d="m2 2 7.586 7.586"></path>
         <circle cx="11" cy="11" r="2"></circle>
     </svg>""",
-    "sans-a": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="14" r="5"></circle>
-        <path d="M17 9v10"></path>
+    # Clean modern geometric single-story sans-serif lowercase 'a'
+    "sans-a": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="{color}">
+        <path d="M12 5C8.13 5 5 8.13 5 12s3.13 7 7 7c1.74 0 3.34-.63 4.6-1.68V19h2.4V7.5h-2.4v1.18C15.34 7.63 13.74 7 12 7zm0 2.4c2.54 0 4.6 2.06 4.6 4.6s-2.06 4.6-4.6 4.6-4.6-2.06-4.6-4.6 2.06-4.6 4.6-4.6z"></path>
     </svg>""",
-    "serif-a": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 7c-3-2-8-2-10 1s-1 6 2 8c2.5 1.5 6 1 8-1"></path>
-        <path d="M7 14c2-1 6-1 8 0"></path>
-        <path d="M17 8v11c0 1 1 2 2 2"></path>
-        <path d="M15 21h4"></path>
+    # Classical two-story serif lowercase 'a' (Bodoni / Times style with top teardrop terminal and foot serif)
+    "serif-a": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="{color}">
+        <path d="M17.5 4.5c-1.3-.7-3.1-1-4.8-1-4.2 0-7.2 2.2-7.2 5.5 0 2.2 1.5 3.9 3.8 4.5-3.5 1-5.8 2.9-5.8 5.8 0 3.3 3 5.7 7.5 5.7 5.1 0 8.3-2.8 8.3-6.8V7c0-1 .7-1.6 1.7-1.6V4.5h-3.5zm-2.5 13.1c0 2.6-2.3 4.4-5.2 4.4-2.8 0-4.6-1.4-4.6-3.4 0-2.3 2-3.5 5.6-4.1l4.2.7v2.4zm0-4.7l-3.5-.5c-1.8-.3-2.8-1.2-2.8-2.6 0-1.8 1.7-3.2 4.2-3.2 1.4 0 2.6.3 3.3.9v5.4z"></path>
     </svg>""",
     "terminal": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="4 17 10 11 4 5"></polyline>
