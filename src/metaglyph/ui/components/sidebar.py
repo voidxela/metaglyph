@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QButtonGroup,
     QHBoxLayout,
@@ -11,6 +11,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from metaglyph.ui.theme.icons import create_themed_icon
 
 
 class SidebarWidget(QWidget):
@@ -61,14 +63,16 @@ class SidebarWidget(QWidget):
         self._button_group.setExclusive(True)
 
         nav_items = [
-            ("✦ Discover", 0),
-            ("🔍 Search", 1),
-            ("💾 Installed", 2),
+            ("compass", "Discover", 0),
+            ("search", "Search", 1),
+            ("folder-check", "Installed", 2),
         ]
 
-        for text, page_idx in nav_items:
+        for icon_name, text, page_idx in nav_items:
             btn = QPushButton(text, nav_group_widget)
             btn.setProperty("class", "nav-btn")
+            btn.setIcon(create_themed_icon(icon_name, size=16))
+            btn.setIconSize(QSize(16, 16))
             btn.setCheckable(True)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda checked=False, idx=page_idx: self._on_nav_clicked(idx))
@@ -87,7 +91,10 @@ class SidebarWidget(QWidget):
         sync_layout = QVBoxLayout(sync_container)
         sync_layout.setContentsMargins(12, 8, 12, 12)
 
-        self._sync_btn = QPushButton("🔄 Sync Catalog", sync_container)
+        self._sync_btn = QPushButton("Sync Catalog", sync_container)
+        self._sync_btn.setObjectName("syncBtn")
+        self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#94a3b8", active_color="#f1f5f9", size=14))
+        self._sync_btn.setIconSize(QSize(14, 14))
         self._sync_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._sync_btn.setStyleSheet(
             "QPushButton { background-color: #22222c; border: 1px solid #313140; color: #94a3b8; padding: 8px 12px; border-radius: 6px; font-weight: 600; text-align: center; } QPushButton:hover { background-color: #2b2b38; color: #f1f5f9; border-color: #444458; }"
@@ -143,7 +150,9 @@ class SidebarWidget(QWidget):
         self._is_syncing = is_syncing
         if is_syncing:
             self._sync_btn.setEnabled(False)
-            self._sync_btn.setText(f"⏳ {message}")
+            self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#64748b", active_color="#64748b", size=14))
+            self._sync_btn.setText(message)
         else:
             self._sync_btn.setEnabled(True)
-            self._sync_btn.setText("🔄 Sync Catalog")
+            self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#94a3b8", active_color="#f1f5f9", size=14))
+            self._sync_btn.setText("Sync Catalog")

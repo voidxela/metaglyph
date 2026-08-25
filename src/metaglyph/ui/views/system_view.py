@@ -6,7 +6,7 @@ import asyncio
 import datetime
 import logging
 from pathlib import Path
-from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, Qt, Signal
+from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation, QSize, Qt, Signal
 from PySide6.QtGui import QClipboard, QFontDatabase, QMouseEvent
 from PySide6.QtWidgets import (
     QApplication,
@@ -29,6 +29,7 @@ from metaglyph.installer.detector import FontDetector, extract_font_names
 from metaglyph.installer.uninstaller import FontUninstaller
 from metaglyph.ui.components.font_preview import FontPreviewWidget
 from metaglyph.ui.components.search_bar import SearchBar
+from metaglyph.ui.theme.icons import create_themed_icon
 
 logger = logging.getLogger(__name__)
 
@@ -627,7 +628,7 @@ class SystemView(QWidget):
         header_layout.addLayout(title_layout)
         header_layout.addStretch(1)
 
-        self._header_scan_indicator = QLabel("⟳ Scanning fonts...", self)
+        self._header_scan_indicator = QLabel("Scanning fonts...", self)
         self._header_scan_indicator.setObjectName("headerScanIndicator")
         self._header_scan_indicator.setVisible(False)
         header_layout.addWidget(self._header_scan_indicator)
@@ -705,20 +706,32 @@ class SystemView(QWidget):
 
         batch_layout.addStretch(1)
 
-        self._expand_all_btn = QPushButton("▼ Expand All", self._batch_bar)
+        self._expand_all_btn = QPushButton("Expand All", self._batch_bar)
         self._expand_all_btn.setObjectName("expandAllBtn")
+        self._expand_all_btn.setIcon(
+            create_themed_icon("chevron-down", normal_color="#94a3b8", active_color="#f1f5f9", size=13)
+        )
+        self._expand_all_btn.setIconSize(QSize(13, 13))
         self._expand_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._expand_all_btn.clicked.connect(lambda: self.expand_all_families(animated=True))
         batch_layout.addWidget(self._expand_all_btn)
 
-        self._collapse_all_btn = QPushButton("▶ Collapse All", self._batch_bar)
+        self._collapse_all_btn = QPushButton("Collapse All", self._batch_bar)
         self._collapse_all_btn.setObjectName("collapseAllBtn")
+        self._collapse_all_btn.setIcon(
+            create_themed_icon("chevron-right", normal_color="#94a3b8", active_color="#f1f5f9", size=13)
+        )
+        self._collapse_all_btn.setIconSize(QSize(13, 13))
         self._collapse_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._collapse_all_btn.clicked.connect(lambda: self.collapse_all_families(animated=True))
         batch_layout.addWidget(self._collapse_all_btn)
 
-        self._batch_uninstall_btn = QPushButton("🗑 Batch Uninstall", self._batch_bar)
+        self._batch_uninstall_btn = QPushButton("Batch Uninstall", self._batch_bar)
         self._batch_uninstall_btn.setObjectName("batchUninstallBtn")
+        self._batch_uninstall_btn.setIcon(
+            create_themed_icon("trash-2", normal_color="#fef2f2", active_color="#ffffff", disabled_color="#475569", size=14)
+        )
+        self._batch_uninstall_btn.setIconSize(QSize(14, 14))
         self._batch_uninstall_btn.setEnabled(False)
         self._batch_uninstall_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._batch_uninstall_btn.clicked.connect(self._on_batch_uninstall_clicked)
@@ -1195,7 +1208,7 @@ class SystemView(QWidget):
 
         self._is_uninstalling = True
         self._batch_uninstall_btn.setEnabled(False)
-        self._batch_uninstall_btn.setText("⏳ Uninstalling...")
+        self._batch_uninstall_btn.setText("Uninstalling...")
 
         try:
             installed_records: list[InstalledFont] = []
@@ -1254,6 +1267,9 @@ class SystemView(QWidget):
             return []
         finally:
             self._is_uninstalling = False
-            self._batch_uninstall_btn.setText("🗑 Batch Uninstall")
+            self._batch_uninstall_btn.setIcon(
+                create_themed_icon("trash-2", normal_color="#fef2f2", active_color="#ffffff", disabled_color="#475569", size=14)
+            )
+            self._batch_uninstall_btn.setText("Batch Uninstall")
             self._update_selection_state()
 

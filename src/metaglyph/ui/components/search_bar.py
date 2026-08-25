@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QWidget,
 )
+
+from metaglyph.ui.theme.icons import create_themed_icon, render_svg_pixmap
 
 
 class SearchBar(QWidget):
@@ -52,8 +54,9 @@ class SearchBar(QWidget):
         container_layout.setSpacing(8)
 
         # Search icon label
-        self._icon_label = QLabel("🔍", self._container)
-        self._icon_label.setStyleSheet("color: #64748b; font-size: 13px;")
+        self._icon_label = QLabel(self._container)
+        self._icon_label.setPixmap(render_svg_pixmap("search", color="#64748b", size=15))
+        self._icon_label.setFixedSize(15, 15)
 
         # Search line edit
         self._line_edit = QLineEdit(self._container)
@@ -63,8 +66,10 @@ class SearchBar(QWidget):
         self._line_edit.returnPressed.connect(self._on_return_pressed)
 
         # Clear button
-        self._clear_btn = QPushButton("✕", self._container)
+        self._clear_btn = QPushButton(self._container)
         self._clear_btn.setObjectName("searchClearButton")
+        self._clear_btn.setIcon(create_themed_icon("x", normal_color="#64748b", hover_color="#f8fafc", size=13))
+        self._clear_btn.setIconSize(QSize(13, 13))
         self._clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._clear_btn.setVisible(False)
         self._clear_btn.clicked.connect(self.clear)

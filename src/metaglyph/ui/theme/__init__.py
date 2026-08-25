@@ -1,5 +1,4 @@
-"""Theme package for Metaglyph PySide6 UI."""
-
+from metaglyph.ui.theme.icons import create_themed_icon, render_svg_pixmap
 from metaglyph.ui.theme.qss_builder import (
     DARK_PALETTE,
     ThemeManager,
@@ -11,5 +10,7 @@ __all__ = [
     "DARK_PALETTE",
     "ThemeManager",
     "apply_theme",
+    "create_themed_icon",
     "get_theme_manager",
+    "render_svg_pixmap",
 ]
