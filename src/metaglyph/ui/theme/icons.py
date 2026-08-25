@@ -81,22 +81,15 @@ ICON_SVGS: dict[str, str] = {
         <path d="m2 2 7.586 7.586"></path>
         <circle cx="11" cy="11" r="2"></circle>
     </svg>""",
-    "feather": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path>
-        <line x1="16" y1="8" x2="2" y2="22"></line>
-        <line x1="17.5" y1="15" x2="9" y2="15"></line>
+    "sans-a": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="14" r="5"></circle>
+        <path d="M17 9v10"></path>
     </svg>""",
-    "type": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="4 7 4 4 20 4 20 7"></polyline>
-        <line x1="9" y1="20" x2="15" y2="20"></line>
-        <line x1="12" y1="4" x2="12" y2="20"></line>
-    </svg>""",
-    "serif": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 6V4h16v2"></path>
-        <path d="M12 4v16"></path>
-        <path d="M8 20h8"></path>
-        <path d="M4 4h3"></path>
-        <path d="M17 4h3"></path>
+    "serif-a": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 7c-3-2-8-2-10 1s-1 6 2 8c2.5 1.5 6 1 8-1"></path>
+        <path d="M7 14c2-1 6-1 8 0"></path>
+        <path d="M17 8v11c0 1 1 2 2 2"></path>
+        <path d="M15 21h4"></path>
     </svg>""",
     "terminal": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="4 17 10 11 4 5"></polyline>
