@@ -717,7 +717,7 @@ class SystemView(QWidget):
         self._collapse_all_btn.clicked.connect(lambda: self.collapse_all_families(animated=True))
         batch_layout.addWidget(self._collapse_all_btn)
 
-        self._batch_uninstall_btn = QPushButton("🗑️ Batch Uninstall", self._batch_bar)
+        self._batch_uninstall_btn = QPushButton("🗑 Batch Uninstall", self._batch_bar)
         self._batch_uninstall_btn.setObjectName("batchUninstallBtn")
         self._batch_uninstall_btn.setEnabled(False)
         self._batch_uninstall_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1254,6 +1254,6 @@ class SystemView(QWidget):
             return []
         finally:
             self._is_uninstalling = False
-            self._batch_uninstall_btn.setText("🗑️ Batch Uninstall")
+            self._batch_uninstall_btn.setText("🗑 Batch Uninstall")
             self._update_selection_state()
 

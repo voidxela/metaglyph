@@ -560,7 +560,7 @@ class DetailPane(QFrame):
         self._is_busy = True
         self._install_btn.setEnabled(False)
         self._uninstall_btn.setEnabled(False)
-        self._install_btn.setText("⏳ Downloading & Installing...")
+        self._install_btn.setText("⏳ Downloading...")
         self._feedback_label.setVisible(False)
 
         temp_dir = Path(tempfile.mkdtemp(prefix=f"metaglyph_dl_{font.id}_"))
@@ -580,6 +580,7 @@ class DetailPane(QFrame):
                 raise ValueError("No font files could be downloaded from provider")
 
             # 2. Dispatch to appropriate installer
+            self._install_btn.setText("⏳ Installing...")
             if scope.lower() == "system":
                 result = await self.system_installer.install_font(font, downloaded_files)
             else:

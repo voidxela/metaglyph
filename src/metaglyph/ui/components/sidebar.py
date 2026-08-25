@@ -61,9 +61,9 @@ class SidebarWidget(QWidget):
         self._button_group.setExclusive(True)
 
         nav_items = [
-            ("✦  Discover", 0),
-            ("🔍  Search", 1),
-            ("💻  Installed Fonts", 2),
+            ("✦ Discover", 0),
+            ("🔍 Search", 1),
+            ("💾 Installed", 2),
         ]
 
         for text, page_idx in nav_items:
@@ -87,7 +87,7 @@ class SidebarWidget(QWidget):
         sync_layout = QVBoxLayout(sync_container)
         sync_layout.setContentsMargins(12, 8, 12, 12)
 
-        self._sync_btn = QPushButton("🔄  Sync Catalog", sync_container)
+        self._sync_btn = QPushButton("🔄 Sync Catalog", sync_container)
         self._sync_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._sync_btn.setStyleSheet(
             "QPushButton { background-color: #22222c; border: 1px solid #313140; color: #94a3b8; padding: 8px 12px; border-radius: 6px; font-weight: 600; text-align: center; } QPushButton:hover { background-color: #2b2b38; color: #f1f5f9; border-color: #444458; }"
@@ -143,7 +143,7 @@ class SidebarWidget(QWidget):
         self._is_syncing = is_syncing
         if is_syncing:
             self._sync_btn.setEnabled(False)
-            self._sync_btn.setText(f"⏳  {message}")
+            self._sync_btn.setText(f"⏳ {message}")
         else:
             self._sync_btn.setEnabled(True)
-            self._sync_btn.setText("🔄  Sync Catalog")
+            self._sync_btn.setText("🔄 Sync Catalog")
