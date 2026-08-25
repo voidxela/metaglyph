@@ -110,6 +110,16 @@ class FontCard(QFrame):
             self._var_badge.setObjectName("fontVariableBadge")
             header_layout.addWidget(self._var_badge)
 
+        # Preview Error / Unavailable Indicator Badge
+        self._error_badge = QLabel("⚠ Preview Unavailable", header_widget)
+        self._error_badge.setObjectName("fontPreviewErrorBadge")
+        self._error_badge.setStyleSheet(
+            "background-color: #27272a; color: #fbbf24; font-size: 11px; "
+            "padding: 2px 7px; border-radius: 4px; border: 1px solid #78350f;"
+        )
+        self._error_badge.setVisible(False)
+        header_layout.addWidget(self._error_badge)
+
         header_layout.addStretch(1)
         main_layout.addWidget(header_widget)
 
@@ -154,11 +164,18 @@ class FontCard(QFrame):
             sample = self.preview_widget.sample_text
             _, family_name = await self.subset_fetcher.get_or_fetch_subset(self.font, sample)
             if family_name:
+                self._error_badge.setVisible(False)
+                self.preview_widget.set_error(False)
                 self.preview_widget.set_font_family(family_name)
+            else:
+                self._error_badge.setVisible(True)
+                self.preview_widget.set_error(True, "Preview unavailable")
         except asyncio.CancelledError:
             pass
         except Exception as exc:
-            logger.warning("Failed to load subset preview for '%s': %s", self.font.family_name, exc)
+            logger.debug("Failed to load subset preview for '%s': %s", self.font.family_name, exc)
+            self._error_badge.setVisible(True)
+            self.preview_widget.set_error(True, "Preview unavailable")
 
 
     def set_sample_text(self, text: str) -> None:

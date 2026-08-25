@@ -453,3 +453,24 @@ async def test_upsert_fonts_return_count(
 
     count = await repository.upsert_fonts([sample_font_jetbrains, sample_font_inter])
     assert count == 2
+
+
+@pytest.mark.asyncio
+async def test_prune_stale_provider_fonts(
+    repository: FontRepository,
+    sample_font_jetbrains: Font,
+    sample_font_inter: Font,
+) -> None:
+    """Verify that prune_stale_provider_fonts removes stale records not in active catalog."""
+    await repository.upsert_fonts([sample_font_jetbrains, sample_font_inter])
+
+    # Inter is primary_provider = fontsquirrel
+    # Pruning fontsquirrel keeping only chunkfive should delete inter
+    pruned = await repository.prune_stale_provider_fonts("fontsquirrel", ["chunkfive"])
+    assert pruned == 1
+
+    inter = await repository.get_font_by_id("inter")
+    assert inter is None
+
+    jb = await repository.get_font_by_id("jetbrains-mono")
+    assert jb is not None

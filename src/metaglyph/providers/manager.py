@@ -54,6 +54,7 @@ class ProviderManager:
 
         fonts = await provider.fetch_catalog()
         inserted_count = await repository.upsert_fonts(fonts)
+        await repository.prune_stale_provider_fonts(provider_name, [f.id for f in fonts])
 
         event_bus = get_event_bus()
         await event_bus.emit_async(

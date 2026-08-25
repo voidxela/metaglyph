@@ -103,6 +103,12 @@ def test_font_preview_widget_properties() -> None:
     preview.set_loading(False)
     assert preview._is_loading is False
 
+    # Error state
+    preview.set_error(True, "Preview unavailable")
+    assert preview.is_error is True
+    preview.set_error(False)
+    assert preview.is_error is False
+
 
 # ============================================================================
 # SearchBar Tests
@@ -205,6 +211,8 @@ def test_font_card_rendering_and_click(sample_font_jetbrains: Font) -> None:
     assert "2 Styles" in card._styles_badge.text()
     assert hasattr(card, "_nerd_badge")
     assert hasattr(card, "_var_badge")
+    assert hasattr(card, "_error_badge")
+    assert card._error_badge.isVisible() is False
 
     # Click signal
     clicked_fonts: list[Font] = []

@@ -34,6 +34,8 @@ class FontPreviewWidget(QFrame):
         self._weight = weight
         self._italic = italic
         self._is_loading = False
+        self._is_error = False
+        self._error_message = ""
 
         self._init_ui()
         self._apply_font()
@@ -69,6 +71,22 @@ class FontPreviewWidget(QFrame):
         self._label.setFont(qfont)
 
     @property
+    def is_error(self) -> bool:
+        """Whether preview is in an error or unavailable state."""
+        return self._is_error
+
+    def set_error(self, is_error: bool = True, message: str = "Preview unavailable") -> None:
+        """Set preview widget to error / unavailable state."""
+        self._is_error = is_error
+        self._error_message = message
+        self._is_loading = False
+        if is_error:
+            self._label.setStyleSheet("color: #71717a; font-style: italic;")
+        else:
+            self._label.setStyleSheet("")
+            self._apply_font()
+
+    @property
     def sample_text(self) -> str:
         """Current sample text string."""
         return self._sample_text
@@ -86,6 +104,8 @@ class FontPreviewWidget(QFrame):
     def set_font_family(self, family_name: str | None) -> None:
         """Update font family name."""
         self._font_family = family_name
+        self._is_error = False
+        self._label.setStyleSheet("")
         self._apply_font()
 
     @property
@@ -123,5 +143,5 @@ class FontPreviewWidget(QFrame):
         self._is_loading = loading
         if loading:
             self._label.setStyleSheet("color: #64748b;")
-        else:
+        elif not self._is_error:
             self._label.setStyleSheet("")

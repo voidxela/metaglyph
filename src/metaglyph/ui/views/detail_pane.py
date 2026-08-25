@@ -434,17 +434,22 @@ class DetailPane(QFrame):
                 variant=target_variant,
             )
             if family_name and self._font and self._font.id == font.id:
+                self._preview.set_error(False)
                 self._preview.set_font_family(family_name)
+            elif self._font and self._font.id == font.id:
+                self._preview.set_error(True, "Preview unavailable for this variant")
         except asyncio.CancelledError:
             pass
         except Exception as exc:
-            logger.warning(
+            logger.debug(
                 "Failed to fetch variant subset for %s (%d %s): %s",
                 font.family_name,
                 weight_val,
                 style_val,
                 exc,
             )
+            if self._font and self._font.id == font.id:
+                self._preview.set_error(True, "Preview unavailable for this variant")
 
     def _trigger_check_installed(self) -> None:
         if self._check_installed_task and not self._check_installed_task.done():

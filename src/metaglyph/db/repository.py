@@ -199,6 +199,44 @@ class FontRepository:
             await conn.commit()
             return len(fonts)
 
+    async def prune_stale_provider_fonts(self, provider_name: str, valid_font_ids: list[str]) -> int:
+        """Remove font records for a provider that no longer exist in its catalog.
+
+        Args:
+            provider_name: The provider identifier (e.g., 'fontsquirrel', 'fontsource').
+            valid_font_ids: Complete list of font IDs currently in the provider catalog.
+
+        Returns:
+            Number of stale font families pruned.
+        """
+        if not valid_font_ids:
+            return 0
+
+        async with self._db.connection() as conn:
+            cursor = await conn.execute(
+                "SELECT id FROM fonts WHERE primary_provider = ?", (provider_name,)
+            )
+            rows = await cursor.fetchall()
+            valid_set = set(valid_font_ids)
+            stale_ids = [row["id"] for row in rows if row["id"] not in valid_set]
+
+            if not stale_ids:
+                return 0
+
+            logger.info("Pruning %d stale fonts for provider '%s'", len(stale_ids), provider_name)
+            for i in range(0, len(stale_ids), 500):
+                chunk = stale_ids[i : i + 500]
+                placeholders = ",".join("?" * len(chunk))
+                await conn.execute(
+                    f"DELETE FROM font_variants WHERE font_id IN ({placeholders})", tuple(chunk)
+                )
+                await conn.execute(
+                    f"DELETE FROM fonts WHERE id IN ({placeholders})", tuple(chunk)
+                )
+
+            await conn.commit()
+            return len(stale_ids)
+
     async def add_variants(self, variants: list[FontVariant]) -> None:
         """Batch insert or update font variants."""
         if not variants:
