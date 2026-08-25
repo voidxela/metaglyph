@@ -41,7 +41,9 @@ _COMPOUND_SUFFIXES = [
     ("Pro", " Pro"),
     ("Display", " Display"),
     ("Text", " Text"),
+    ("Term", " Term"),
     ("LGS", " LGS"),
+    ("LG", " LG"),
 ]
 
 
@@ -120,6 +122,7 @@ NERD_TO_STANDARD_SLUG_MAP: dict[str, str] = {
     "inconsolata-go": "inconsolata-go",
     "inconsolata-lgc": "inconsolata-lgc",
     "iosevka": "iosevka",
+    "iosevkaterm": "iosevka-term",
     "iosevka-term": "iosevka-term",
     "jetbrains-mono": "jetbrains-mono",
     "lilex": "lilex",
@@ -245,6 +248,7 @@ FEATURED_FONT_SLUGS: set[str] = {
     "firacode",
     "meslo",
     "meslo-lg",
+    "meslolg",
     "meslo-lg-m",
     "meslo-lg-s",
     "meslo-lg-l",
@@ -267,6 +271,7 @@ FEATURED_FONT_NAMES: list[str] = [
     "fira code",
     "firacode",
     "meslo",
+    "meslolg",
     "meslo lg",
     "meslo lg m",
     "meslo lg s",

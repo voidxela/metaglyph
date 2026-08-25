@@ -117,10 +117,13 @@ def test_provider_priorities() -> None:
     [
         ("iosevka", "Iosevka", True),
         ("iosevkaterm", "iosevkaterm", True),
+        ("iosevkaterm", "IosevkaTerm", True),
         ("iosevka-term", "Iosevka Term", True),
+        ("iosevkaterm-nerd-font", "IosevkaTerm Nerd Font", True),
         ("fira-code", "Fira Code", True),
         ("firacode", "FiraCode", True),
         ("meslo", "Meslo", True),
+        ("meslolg", "MesloLG", True),
         ("meslo-lg", "Meslo LG", True),
         ("meslo-lg-nerd-font", "MesloLG Nerd Font", True),
         ("bitstream-vera-mono", "Bitstream Vera Mono", True),
