@@ -162,6 +162,10 @@ class FontSquirrelProvider(BaseFontProvider):
 
         for item in tree:
             path = item.get("path", "")
+            size = item.get("size")
+            # Only include real font binary files (skip explicit 0-byte placeholders)
+            if size is not None and size == 0:
+                continue
             if path.startswith("Fonts/") and path.lower().endswith((".ttf", ".otf")):
                 parts = path.split("/")
                 if len(parts) >= 3:
@@ -275,58 +279,75 @@ class FontSquirrelProvider(BaseFontProvider):
 
         client = await self.get_client()
 
-        # Determine target variant download URL
-        dl_url: str | None = None
+        # Build candidate URLs to try in priority order
+        candidate_urls: list[str] = []
         if variant and variant.download_url:
-            dl_url = variant.download_url
-        elif font.variants:
-            # Find best match for requested weight/style
-            matching = [v for v in font.variants if v.weight == weight and v.style == style]
-            chosen_var = matching[0] if matching else font.variants[0]
-            dl_url = chosen_var.download_url
-        else:
-            dl_url = f"{self.download_base_url}/{font.id}"
+            candidate_urls.append(variant.download_url)
 
-        with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) as tmp:
-            tmp_path = Path(tmp.name)
-        logger.debug("Downloading font preview bytes from %s to %s", dl_url, tmp_path)
+        if font.variants:
+            matching = [v.download_url for v in font.variants if v.weight == weight and v.style == style and v.download_url]
+            for u in matching:
+                if u not in candidate_urls:
+                    candidate_urls.append(u)
+
+            for v in font.variants:
+                if v.download_url and v.download_url not in candidate_urls:
+                    candidate_urls.append(v.download_url)
+
+        fallback_kit_url = f"{self.download_base_url}/{font.id}"
+        if fallback_kit_url not in candidate_urls:
+            candidate_urls.append(fallback_kit_url)
 
         font_bytes: bytes | None = None
-        try:
-            async with client.stream("GET", dl_url, headers=BROWSER_HEADERS) as resp:
-                resp.raise_for_status()
-                with tmp_path.open("wb") as f:
-                    async for chunk in resp.aiter_bytes(chunk_size=65536):
-                        f.write(chunk)
+        last_error: Exception | None = None
 
-            with tmp_path.open("rb") as f:
-                magic = f.read(4)
+        for dl_url in candidate_urls:
+            with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) as tmp:
+                tmp_path = Path(tmp.name)
 
-            # If ZIP archive kit, extract font file
-            if magic == b"PK\x03\x04":
-                with zipfile.ZipFile(tmp_path) as z:
-                    font_files = [
-                        n for n in z.namelist()
-                        if n.lower().endswith((".ttf", ".otf")) and not Path(n).name.startswith(".") and "__MACOSX" not in n
-                    ]
-                    if not font_files:
-                        raise ValueError(f"No TTF/OTF font files found in Font Squirrel kit {dl_url}")
+            try:
+                logger.debug("Downloading font preview bytes from %s to %s", dl_url, tmp_path)
+                async with client.stream("GET", dl_url, headers=BROWSER_HEADERS) as resp:
+                    resp.raise_for_status()
+                    with tmp_path.open("wb") as f:
+                        async for chunk in resp.aiter_bytes(chunk_size=65536):
+                            f.write(chunk)
 
-                    chosen = font_files[0]
-                    for name in font_files:
-                        n_lower = name.lower()
-                        if "regular" in n_lower or "normal" in n_lower:
-                            chosen = name
-                            break
+                with tmp_path.open("rb") as f:
+                    magic = f.read(4)
 
-                    font_bytes = z.read(chosen)
-            else:
-                font_bytes = tmp_path.read_bytes()
-        finally:
-            tmp_path.unlink(missing_ok=True)
+                # If ZIP archive kit, extract font file
+                if magic == b"PK\x03\x04":
+                    with zipfile.ZipFile(tmp_path) as z:
+                        font_files = [
+                            n for n in z.namelist()
+                            if n.lower().endswith((".ttf", ".otf")) and not Path(n).name.startswith(".") and "__MACOSX" not in n
+                        ]
+                        if font_files:
+                            chosen = font_files[0]
+                            for name in font_files:
+                                n_lower = name.lower()
+                                if "regular" in n_lower or "normal" in n_lower:
+                                    chosen = name
+                                    break
+                            font_bytes = z.read(chosen)
+                else:
+                    raw_data = tmp_path.read_bytes()
+                    if len(raw_data) > 0:
+                        font_bytes = raw_data
+
+                if font_bytes and len(font_bytes) > 0:
+                    break
+            except Exception as exc:
+                last_error = exc
+                continue
+            finally:
+                tmp_path.unlink(missing_ok=True)
 
         if not font_bytes:
-            raise ValueError(f"Could not extract font data for Font Squirrel font {font.family_name}")
+            raise ValueError(
+                f"Could not extract font data for Font Squirrel font {font.family_name}: {last_error}"
+            )
 
         subsetted = await asyncio.to_thread(subset_font_bytes, font_bytes, sample_text)
         return self.cache.save_subset(

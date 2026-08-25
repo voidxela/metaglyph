@@ -11,6 +11,10 @@ from fontTools.ttLib import TTFont
 
 logger = logging.getLogger(__name__)
 
+# Suppress harmless OpenType/TrueType table drop notices from fontTools.subset
+logging.getLogger("fontTools.subset").setLevel(logging.ERROR)
+logging.getLogger("fontTools").setLevel(logging.ERROR)
+
 
 def create_subset_options() -> Options:
     """Create optimized subsetting options for micro-previews."""

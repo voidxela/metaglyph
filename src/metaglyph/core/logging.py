@@ -58,6 +58,10 @@ def setup_logging(
             console_handler.setLevel(logging.DEBUG)
             root_logger.warning("Failed to initialize file logger: %s", exc)
 
+    # Suppress verbose third-party loggers (fontTools dropped table warnings, etc.)
+    logging.getLogger("fontTools").setLevel(logging.ERROR)
+    logging.getLogger("fontTools.subset").setLevel(logging.ERROR)
+
     _is_configured = True
 
 
