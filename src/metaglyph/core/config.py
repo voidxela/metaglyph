@@ -223,8 +223,9 @@ class Config(BaseModel):
             self.downloads_cache_dir,
             self.user_fonts_dir,
         ):
-            logger.info("Ensuring directory exists: %s", path)
+            logger.debug("Ensuring directory exists: %s", path)
             path.mkdir(parents=True, exist_ok=True)
+
 
 
 _global_config: Config | None = None

@@ -156,7 +156,7 @@ class DatabaseManager:
     @contextlib.asynccontextmanager
     async def connection(self) -> AsyncIterator[aiosqlite.Connection]:
         """Async context manager yielding an aiosqlite database connection."""
-        logger.info("Opening database connection: %s", self._conn_str)
+        logger.debug("Opening database connection: %s", self._conn_str)
         conn = await aiosqlite.connect(self._conn_str, uri=self._uri)
         conn.row_factory = aiosqlite.Row
         await conn.execute("PRAGMA foreign_keys = ON;")
@@ -164,4 +164,5 @@ class DatabaseManager:
             yield conn
         finally:
             await conn.close()
+
 

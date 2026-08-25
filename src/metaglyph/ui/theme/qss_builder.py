@@ -60,10 +60,11 @@ class ThemeManager:
             return ""
 
         try:
-            logger.info("Reading stylesheet from %s", theme_file)
+            logger.debug("Reading stylesheet from %s", theme_file)
             content = theme_file.read_text(encoding="utf-8")
             self._cache[theme_name] = content
             return content
+
 
         except Exception as exc:
             logger.error("Failed to read theme file %s: %s", theme_file, exc)

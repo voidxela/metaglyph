@@ -43,10 +43,11 @@ def setup_logging(
     if log_to_file:
         try:
             config = get_config()
-            root_logger.info("Ensuring log cache directory exists: %s", config.cache_dir)
+            root_logger.debug("Ensuring log cache directory exists: %s", config.cache_dir)
             config.cache_dir.mkdir(parents=True, exist_ok=True)
             log_file = config.cache_dir / "metaglyph.log"
-            root_logger.info("Configuring application file log: %s", log_file)
+            root_logger.debug("Configuring application file log: %s", log_file)
+
             file_handler = logging.handlers.RotatingFileHandler(
                 log_file, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
             )

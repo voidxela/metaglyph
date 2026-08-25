@@ -207,7 +207,7 @@ class SystemFontItemWidget(QFrame):
         preview_family = self.family_name
         if self.file_path and Path(self.file_path).exists():
             try:
-                logger.info("Loading font file into QFontDatabase for preview: %s", self.file_path)
+                logger.debug("Loading font file into QFontDatabase for preview: %s", self.file_path)
                 fid = QFontDatabase.addApplicationFont(str(self.file_path))
                 if fid >= 0:
                     fams = QFontDatabase.applicationFontFamilies(fid)
@@ -215,6 +215,7 @@ class SystemFontItemWidget(QFrame):
                         preview_family = fams[0]
             except Exception as e:
                 logger.warning("Failed to load application font %s: %s", self.file_path, e)
+
 
 
         # Live Font Preview in Details Box

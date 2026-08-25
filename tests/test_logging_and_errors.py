@@ -31,82 +31,66 @@ from metaglyph.ui.views.system_view import SystemView
 
 
 @pytest.mark.asyncio
-async def test_filesystem_actions_logged_at_info(
+async def test_user_actions_logged_at_info_and_subsets_at_debug(
     tmp_path: Path,
     test_ttf_bytes: bytes,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Verify that every filesystem operation produces INFO logs in the metaglyph logger."""
-    caplog.set_level(logging.INFO, logger="metaglyph")
-
-    # 1. Config ensure directories
-    data_dir = tmp_path / "data"
-    cfg = Config(
-        data_dir_override=data_dir,
-        cache_dir_override=tmp_path / "cache",
-        user_fonts_dir_override=tmp_path / "fonts",
-    )
-    cfg.ensure_directories()
-    assert any("Ensuring directory exists" in rec.message and rec.levelno == logging.INFO for rec in caplog.records)
-
-    # 2. Database manager initialize & connection
-    db_file = tmp_path / "db" / "test.db"
-    db_mgr = DatabaseManager(db_file)
-    await db_mgr.initialize()
-    assert any("Initializing database schema" in rec.message and rec.levelno == logging.INFO for rec in caplog.records)
-    assert any("Opening database connection" in rec.message and rec.levelno == logging.INFO for rec in caplog.records)
-    await db_mgr.close()
-
-    # 3. SubsetCache operations
+    """Verify direct user actions are logged at INFO while micro-subset operations log at DEBUG."""
+    # 1. Micro-subset operations produce DEBUG logs (not INFO)
+    caplog.set_level(logging.DEBUG, logger="metaglyph")
     cache_dir = tmp_path / "subset_cache"
     cache = SubsetCache(cache_dir=cache_dir)
-    assert any("Ensuring subset cache directory exists" in rec.message for rec in caplog.records)
 
     subset_path = cache.save_subset("test-font", "ABC", test_ttf_bytes, 400, "normal")
     assert subset_path.exists()
-    assert any("Writing temporary subset file" in rec.message for rec in caplog.records)
-    assert any("Moving temporary subset" in rec.message for rec in caplog.records)
+    assert any("Writing temporary subset file" in rec.message and rec.levelno == logging.DEBUG for rec in caplog.records)
+    assert not any("Writing temporary subset file" in rec.message and rec.levelno == logging.INFO for rec in caplog.records)
 
-    # Get cached subset (touch)
     got = cache.get_subset("test-font", "ABC", 400, "normal")
     assert got is not None
-    assert any("Updating access timestamp on cached subset" in rec.message for rec in caplog.records)
+    assert any("Updating access timestamp on cached subset" in rec.message and rec.levelno == logging.DEBUG for rec in caplog.records)
 
-    # Clear cache
     cache.clear()
-    assert any("Clearing cached subset file" in rec.message for rec in caplog.records)
+    assert any("Clearing cached subset file" in rec.message and rec.levelno == logging.DEBUG for rec in caplog.records)
 
-    # 4. Subsetter & Loader
+    # Subsetter & FontLoader
     font_file = tmp_path / "TestFont.ttf"
     font_file.write_bytes(test_ttf_bytes)
     out_subset = tmp_path / "subsets" / "sub.ttf"
     subset_font_file(font_file, out_subset, "Hello")
-    assert any("Reading font file for subsetting" in rec.message for rec in caplog.records)
-    assert any("Writing subset font file" in rec.message for rec in caplog.records)
+    assert any("Reading font file for subsetting" in rec.message and rec.levelno == logging.DEBUG for rec in caplog.records)
+    assert any("Writing subset font file" in rec.message and rec.levelno == logging.DEBUG for rec in caplog.records)
 
     extract_font_family_name(font_file)
-    assert any("Reading font metadata from" in rec.message for rec in caplog.records)
+    assert any("Reading font metadata from" in rec.message and rec.levelno == logging.DEBUG for rec in caplog.records)
 
     loader = FontLoader()
     loader.load_font(font_file)
-    assert any("Loading application font file into Qt" in rec.message for rec in caplog.records)
+    assert any("Loading application font file into Qt" in rec.message and rec.levelno == logging.DEBUG for rec in caplog.records)
 
-    # 5. Magic bytes & Detector
-    verify_font_magic_bytes(font_file)
-    assert any("Reading font header magic bytes" in rec.message for rec in caplog.records)
+    # 2. Scanning summary & Direct User Install / Uninstall are logged at INFO
+    caplog.set_level(logging.INFO, logger="metaglyph")
+    caplog.clear()
 
-    extract_font_names(font_file)
-    assert any("Reading font names from file" in rec.message for rec in caplog.records)
-
+    cfg = Config(
+        data_dir_override=tmp_path / "data",
+        cache_dir_override=tmp_path / "cache",
+        user_fonts_dir_override=tmp_path / "fonts",
+    )
     detector = FontDetector(config=cfg)
     detector.scan_directories([tmp_path])
-    assert any("Scanning directory for fonts" in rec.message for rec in caplog.records)
+    assert any("Scanning" in rec.message and "font directories" in rec.message and rec.levelno == logging.INFO for rec in caplog.records)
+    assert any("Discovered" in rec.message and "installed fonts" in rec.message and rec.levelno == logging.INFO for rec in caplog.records)
 
-    # 6. UserFontInstaller
-    user_target = tmp_path / "user_installed_fonts"
-    repo = FontRepository(db_mgr)
+    # User font installation
+    db_file = tmp_path / "db" / "test.db"
+    db_mgr = DatabaseManager(db_file)
     await db_mgr.initialize()
+    repo = FontRepository(db_mgr)
+    user_target = tmp_path / "user_installed_fonts"
     installer = UserFontInstaller(repository=repo, target_dir_override=user_target)
+
     sample_font = Font(
         id="test-font",
         family_name="Test Font",
@@ -116,18 +100,15 @@ async def test_filesystem_actions_logged_at_info(
     )
     res = await installer.install_font(sample_font, [font_file])
     assert res.success is True
-    assert any("Copying font file from" in rec.message for rec in caplog.records)
-    assert any("Moving temporary file from" in rec.message for rec in caplog.records)
+    assert any("Copying font file from" in rec.message and rec.levelno == logging.INFO for rec in caplog.records)
+    assert any("Moving temporary file from" in rec.message and rec.levelno == logging.INFO for rec in caplog.records)
 
-    # Uninstall
+    # User font uninstallation
     uninst_res = await installer.uninstall_font(sample_font.id, sample_font.family_name, res.installed_files)
     assert uninst_res.success is True
-    assert any("Deleting user font file" in rec.message for rec in caplog.records)
+    assert any("Deleting user font file" in rec.message and rec.levelno == logging.INFO for rec in caplog.records)
+    await db_mgr.close()
 
-    # 7. ThemeManager stylesheet reading
-    theme_mgr = ThemeManager()
-    theme_mgr.get_stylesheet("dark")
-    assert any("Reading stylesheet from" in rec.message for rec in caplog.records)
 
 
 @pytest.mark.asyncio

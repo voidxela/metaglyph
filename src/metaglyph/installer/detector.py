@@ -49,7 +49,7 @@ def _guess_family_and_style(stem: str) -> tuple[str, str, str | None]:
 def extract_font_names(file_path: Path) -> tuple[str, str, str | None]:
     """Extract family name, style/variant name, and postscript name from a font file."""
     try:
-        logger.info("Reading font names from file: %s", file_path)
+        logger.debug("Reading font names from file: %s", file_path)
         with TTFont(str(file_path), fontNumber=0, lazy=True) as tt:
             name_table = tt.get("name")
             if not name_table:
@@ -142,11 +142,13 @@ class FontDetector:
 
         valid_extensions = {".ttf", ".otf", ".ttc", ".woff", ".woff2"}
 
+        logger.info("Scanning %d font directories for installed fonts", len(all_dirs))
+
         for base_dir in all_dirs:
             if not base_dir.exists():
                 continue
 
-            logger.info("Scanning directory for fonts: %s", base_dir)
+            logger.debug("Scanning font directory: %s", base_dir)
             try:
                 walk_iter = os.walk(base_dir)
             except Exception as e:
@@ -182,7 +184,9 @@ class FontDetector:
                     except Exception as e:
                         logger.warning("Error processing font file %s/%s: %s", root, file_name, e)
 
+        logger.info("Discovered %d installed fonts across system directories", len(discovered))
         return list(discovered.values())
+
 
 
     async def scan_system_fonts(

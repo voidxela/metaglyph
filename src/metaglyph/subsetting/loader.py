@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def extract_font_family_name(file_path: Path) -> str:
     """Extract font family name from font binary metadata without requiring Qt."""
     try:
-        logger.info("Reading font metadata from %s", file_path)
+        logger.debug("Reading font metadata from %s", file_path)
         with TTFont(file_path, fontNumber=0, lazy=True) as font:
             name_table = font.get("name")
             if name_table:
@@ -66,7 +66,7 @@ class FontLoader:
         qt_font_id = -1
         family_name = ""
 
-        logger.info("Loading application font file into Qt: %s", file_path)
+        logger.debug("Loading application font file into Qt: %s", file_path)
         if self._is_gui_running():
             from PySide6.QtGui import QFontDatabase
 
@@ -84,6 +84,7 @@ class FontLoader:
         self._loaded[file_path] = (qt_font_id, family_name)
         self._enforce_capacity()
         return qt_font_id, family_name
+
 
 
     def unload_font(self, file_path: Path) -> bool:

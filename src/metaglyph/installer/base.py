@@ -54,13 +54,14 @@ def verify_font_magic_bytes(file_path: Path) -> bool:
         return False
 
     try:
-        logger.info("Reading font header magic bytes: %s", file_path)
+        logger.debug("Reading font header magic bytes: %s", file_path)
         with file_path.open("rb") as f:
             header = f.read(4)
             return header in FONT_MAGIC_SIGNATURES
     except Exception as exc:
         logger.warning("Failed to read header from %s: %s", file_path, exc)
         return False
+
 
 
 
