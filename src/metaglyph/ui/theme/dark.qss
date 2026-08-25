@@ -85,6 +85,7 @@ QPushButton.nav-btn {
     color: #94a3b8;
     background-color: transparent;
     border: 1px solid transparent;
+    border-left: 3px solid transparent;
 }
 
 QPushButton.nav-btn:hover {

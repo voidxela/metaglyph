@@ -21,69 +21,70 @@ from PySide6.QtWidgets import (
 from metaglyph.db.models import Font
 from metaglyph.db.repository import FontRepository
 from metaglyph.subsetting.fetcher import SubsetFetcher
+from metaglyph.ui.theme.icons import render_svg_pixmap
 
 logger = logging.getLogger(__name__)
 
 CURATED_CATEGORY_METADATA = [
     {
         "category": "Interface",
-        "icon": "◈",
+        "icon": "layout",
         "title": "Interface",
         "description": "Clean, highly readable sans-serif typefaces engineered for modern UI design and application workflows.",
         "examples": ["Inter", "Roboto", "Plus Jakarta Sans"],
     },
     {
         "category": "Code",
-        "icon": "⟨/⟩",
+        "icon": "code",
         "title": "Code",
         "description": "Monospaced fonts optimized for syntax clarity, coding ligatures, and developer terminal ergonomics.",
         "examples": ["JetBrains Mono", "Fira Code", "Hack"],
     },
     {
         "category": "Header",
-        "icon": "¶",
+        "icon": "heading",
         "title": "Header",
         "description": "Punchy, expressive display and headline fonts designed for high visual impact and titles.",
         "examples": ["Montserrat", "Syne", "Cabinet Grotesk"],
     },
     {
         "category": "Prose",
-        "icon": "§",
+        "icon": "book-open",
         "title": "Prose",
         "description": "Refined serif and editorial typefaces tailored for sustained, effortless long-form reading.",
         "examples": ["Merriweather", "Playfair Display", "Lora"],
     },
     {
         "category": "Display",
-        "icon": "★",
+        "icon": "sparkles",
         "title": "Display",
         "description": "Distinctive, bold, artistic letterforms for branding, posters, creative typography, and logos.",
         "examples": ["Bebas Neue", "Righteous", "Orbitron"],
     },
     {
         "category": "Handwriting",
-        "icon": "✎",
+        "icon": "pen-tool",
         "title": "Handwriting",
         "description": "Organic, brush, and cursive handwritten scripts for personal, casual, or signature styles.",
         "examples": ["Caveat", "Pacifico", "Dancing Script"],
     },
     {
         "category": "Sans-Serif",
-        "icon": "Aa",
+        "icon": "type",
         "title": "Sans-Serif",
         "description": "Modernist typefaces without serifs, engineered for clarity and visual consistency across all screen resolutions.",
         "examples": ["Inter", "Roboto", "Open Sans"],
     },
     {
         "category": "Serif",
-        "icon": "Tt",
+        "icon": "serif",
         "title": "Serif",
         "description": "Classic typefaces with decorative serifs, designed for elegant literary publishing and comfortable editorial reading.",
         "examples": ["Merriweather", "Lora", "PT Serif"],
     },
     {
         "category": "Monospace",
-        "icon": "⌨",
+        "icon": "terminal",
         "title": "Monospace",
         "description": "Fixed-width character grid typefaces designed for code editors, developer terminals, and technical data.",
         "examples": ["JetBrains Mono", "Space Mono", "Fira Code"],
@@ -129,10 +130,13 @@ class CategoryCardWidget(QFrame):
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(8)
 
-        icon_label = QLabel(icon, self)
+        icon_label = QLabel(self)
         icon_label.setObjectName("categoryCardIcon")
+        icon_label.setPixmap(render_svg_pixmap(icon, color="#818cf8", size=16))
+        icon_label.setFixedSize(26, 26)
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_label.setStyleSheet(
-            "font-size: 13px; font-weight: 700; color: #818cf8; background-color: #1f2436; padding: 3px 6px; border-radius: 4px; border: 1px solid #2d344d;"
+            "background-color: #1f2436; border-radius: 6px; border: 1px solid #2d344d;"
         )
         header_layout.addWidget(icon_label)
 
@@ -316,7 +320,6 @@ class DiscoverView(QWidget):
         except Exception as exc:
             logger.error("Failed to load curated category counts: %s", exc)
             self._empty_notice.setVisible(True)
-
 
     def trigger_async_refresh(self) -> None:
         """Schedule background stats refresh."""
