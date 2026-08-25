@@ -96,17 +96,17 @@ def test_curate_category(
 
 def test_provider_priorities() -> None:
     """Test provider priority ranking and replacement decisions."""
-    # fontsource (1) > google (2) > nerd_fonts (3)
-    assert get_provider_priority("fontsource") < get_provider_priority("google")
-    assert get_provider_priority("google") < get_provider_priority("nerd_fonts")
+    # fontsource (1) > fontsquirrel (2) > nerd_fonts (3)
+    assert get_provider_priority("fontsource") < get_provider_priority("fontsquirrel")
+    assert get_provider_priority("fontsquirrel") < get_provider_priority("nerd_fonts")
 
-    # Fontsource replaces Google
-    assert should_replace_primary_provider("google", "fontsource") is True
-    # Google does not replace Fontsource
-    assert should_replace_primary_provider("fontsource", "google") is False
+    # Fontsource replaces Font Squirrel
+    assert should_replace_primary_provider("fontsquirrel", "fontsource") is True
+    # Font Squirrel does not replace Fontsource
+    assert should_replace_primary_provider("fontsource", "fontsquirrel") is False
     # Fontsource replaces Nerd Fonts
     assert should_replace_primary_provider("nerd_fonts", "fontsource") is True
-    # Google replaces Nerd Fonts
-    assert should_replace_primary_provider("nerd_fonts", "google") is True
-    # Nerd Fonts does not replace Google
-    assert should_replace_primary_provider("google", "nerd_fonts") is False
+    # Font Squirrel replaces Nerd Fonts
+    assert should_replace_primary_provider("nerd_fonts", "fontsquirrel") is True
+    # Nerd Fonts does not replace Font Squirrel
+    assert should_replace_primary_provider("fontsquirrel", "nerd_fonts") is False

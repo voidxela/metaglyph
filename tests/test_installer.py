@@ -363,7 +363,7 @@ print(json.dumps({"success": True, "action": "uninstall", "installed_files": [],
     inst_sys = InstalledFont(
         font_id="inter",
         family_name="Inter",
-        provider="google",
+        provider="fontsquirrel",
         install_scope="System",
         installed_at=1700000000,
         file_paths=[str(sf_path)],

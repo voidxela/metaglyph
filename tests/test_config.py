@@ -41,9 +41,9 @@ def test_config_paths_and_defaults(tmp_path: Path) -> None:
 def test_config_provider_priorities() -> None:
     """Verify default provider priority order."""
     cfg = Config()
-    # fontsource (1) > google (2) > nerd_fonts (3)
-    assert cfg.provider_priorities["fontsource"] < cfg.provider_priorities["google"]
-    assert cfg.provider_priorities["google"] < cfg.provider_priorities["nerd_fonts"]
+    # fontsource (1) > fontsquirrel (2) > nerd_fonts (3)
+    assert cfg.provider_priorities["fontsource"] < cfg.provider_priorities["fontsquirrel"]
+    assert cfg.provider_priorities["fontsquirrel"] < cfg.provider_priorities["nerd_fonts"]
 
 
 def test_logging_setup(tmp_path: Path) -> None:

@@ -41,7 +41,7 @@ async def test_large_catalog_indexing_and_deduplication(temp_dir: Path) -> None:
     await db_manager.initialize()
     repository = FontRepository(db_manager)
 
-    providers = ["fontsource", "google", "nerd_fonts"]
+    providers = ["fontsource", "fontsquirrel", "nerd_fonts"]
     categories = ["sans-serif", "serif", "monospace", "display", "handwriting"]
     curated_categories = ["Interface", "Code", "Header", "Prose", "Display", "Handwriting"]
 
@@ -161,7 +161,7 @@ async def test_concurrent_database_read_write_operations(temp_dir: Path) -> None
             family_name=f"Initial Font {i}",
             category="sans-serif",
             curated_category="Interface",
-            primary_provider="google",
+            primary_provider="fontsquirrel",
             last_synced_at=1700000000,
         )
         for i in range(100)
@@ -190,7 +190,7 @@ async def test_concurrent_database_read_write_operations(temp_dir: Path) -> None
             entry = InstalledFont(
                 font_id=f"initial-font-{task_id * 10 + i}",
                 family_name=f"Initial Font {task_id * 10 + i}",
-                provider="google",
+                provider="fontsquirrel",
                 install_scope="User",
                 installed_at=1700000000 + i,
                 file_paths=[f"/tmp/fonts/{task_id}_{i}.ttf"],
@@ -289,7 +289,7 @@ async def test_high_concurrency_subset_fetching(temp_dir: Path, test_ttf_file: P
             id=f"stress-font-{i}",
             family_name=f"Stress Font {i}",
             category="sans-serif",
-            primary_provider="google",
+            primary_provider="fontsquirrel",
             last_synced_at=1700000000,
         )
         for i in range(20)
@@ -339,7 +339,7 @@ async def test_rapid_search_debouncing_and_interruption(repository: FontReposito
             family_name="Fira Sans",
             category="sans-serif",
             curated_category="Prose",
-            primary_provider="google",
+            primary_provider="fontsquirrel",
             last_synced_at=1700000000,
         ),
         Font(

@@ -165,14 +165,14 @@ async def test_batch_uninstaller_mixed_scenarios(
         id="font-one",
         family_name="Font One",
         category="sans-serif",
-        primary_provider="google",
+        primary_provider="fontsquirrel",
         last_synced_at=1700000000,
     )
     font2 = Font(
         id="font-two",
         family_name="Font Two",
         category="sans-serif",
-        primary_provider="google",
+        primary_provider="fontsquirrel",
         last_synced_at=1700000000,
     )
     await repository.upsert_fonts([font1, font2])
@@ -184,7 +184,7 @@ async def test_batch_uninstaller_mixed_scenarios(
     f1 = InstalledFont(
         font_id="font-one",
         family_name="Font One",
-        provider="google",
+        provider="fontsquirrel",
         install_scope="User",
         installed_at=1700000000,
         file_paths=[str(existing_file)],
@@ -192,7 +192,7 @@ async def test_batch_uninstaller_mixed_scenarios(
     f2 = InstalledFont(
         font_id="font-two",
         family_name="Font Two",
-        provider="google",
+        provider="fontsquirrel",
         install_scope="User",
         installed_at=1700000000,
         file_paths=[str(missing_file)],
@@ -225,7 +225,7 @@ async def test_database_unicode_and_special_character_resilience(
             family_name="Noto Sans CJK SC (简体中文)",
             category="sans-serif",
             curated_category="Interface",
-            primary_provider="google",
+            primary_provider="fontsquirrel",
             last_synced_at=1700000000,
         ),
         Font(
@@ -305,7 +305,7 @@ def test_detail_pane_empty_variants_resilience() -> None:
         id="bare-font",
         family_name="Bare Font",
         category="sans-serif",
-        primary_provider="google",
+        primary_provider="fontsquirrel",
         last_synced_at=1700000000,
         variants=[],
     )

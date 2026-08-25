@@ -60,33 +60,33 @@ async def test_provider_priority_deduplication(repository: FontRepository) -> No
     """Verify provider priority resolution during deduplication."""
     now = int(time.time())
 
-    # 1. Insert from Google Fonts (Priority 2)
-    google_font = Font(
+    # 1. Insert from Font Squirrel (Priority 2)
+    fontsquirrel_font = Font(
         id="fira-code",
         family_name="Fira Code",
         category="monospace",
         curated_category="Code",
         is_variable=False,
         has_nerd_font=False,
-        primary_provider="google",
+        primary_provider="fontsquirrel",
         last_synced_at=now,
         variants=[
             FontVariant(
                 font_id="fira-code",
-                provider="google",
+                provider="fontsquirrel",
                 style="normal",
                 weight=400,
                 file_format="ttf",
-                download_url="https://google.com/fira-400.ttf",
+                download_url="https://fontsquirrel.com/fira-400.ttf",
             )
         ],
     )
-    await repository.upsert_font(google_font)
+    await repository.upsert_font(fontsquirrel_font)
 
-    font_after_google = await repository.get_font_by_id("fira-code")
-    assert font_after_google is not None
-    assert font_after_google.primary_provider == "google"
-    assert len(font_after_google.variants) == 1
+    font_after_fsquirrel = await repository.get_font_by_id("fira-code")
+    assert font_after_fsquirrel is not None
+    assert font_after_fsquirrel.primary_provider == "fontsquirrel"
+    assert len(font_after_fsquirrel.variants) == 1
 
     # 2. Upsert same font from Fontsource (Priority 1 - Higher)
     fontsource_font = Font(
@@ -297,7 +297,7 @@ async def test_link_nerd_fonts(repository: FontRepository) -> None:
         curated_category="Code",
         is_variable=False,
         has_nerd_font=False,
-        primary_provider="google",
+        primary_provider="fontsquirrel",
         last_synced_at=now,
     )
     # Nerd font
@@ -335,7 +335,7 @@ async def test_link_nerd_fonts_variant_priority(repository: FontRepository) -> N
         curated_category="Code",
         is_variable=False,
         has_nerd_font=False,
-        primary_provider="google",
+        primary_provider="fontsquirrel",
         last_synced_at=now,
     )
     # Insert in reverse priority order (Propo, then Mono, then Standard)
@@ -426,7 +426,7 @@ async def test_add_variants_standalone(
 
     new_variant = FontVariant(
         font_id="inter",
-        provider="google",
+        provider="fontsquirrel",
         style="italic",
         weight=700,
         file_format="ttf",

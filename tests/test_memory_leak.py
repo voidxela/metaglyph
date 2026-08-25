@@ -155,14 +155,14 @@ async def test_subset_fetcher_in_flight_cleanup_on_success_and_error(
         id="good-font",
         family_name="Good Font",
         category="sans-serif",
-        primary_provider="google",
+        primary_provider="fontsquirrel",
         last_synced_at=1700000000,
     )
     error_font = Font(
         id="error-font",
         family_name="Error Font",
         category="monospace",
-        primary_provider="google",
+        primary_provider="fontsquirrel",
         last_synced_at=1700000000,
     )
 
@@ -195,7 +195,7 @@ def test_font_preview_widget_lifecycle_and_gc(sample_font_jetbrains: Font) -> No
             family_name=f"GC Font {i}",
             category="sans-serif",
             curated_category="Interface",
-            primary_provider="google",
+            primary_provider="fontsquirrel",
             last_synced_at=1700000000,
         )
         card = FontCard(font=font, parent=parent_container)

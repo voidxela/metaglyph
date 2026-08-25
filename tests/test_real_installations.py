@@ -1,4 +1,4 @@
-"""End-to-end real font installation and uninstallation tests for Google Fonts and Nerd Fonts."""
+"""End-to-end real font installation and uninstallation tests for Fontsource and Nerd Fonts."""
 
 from __future__ import annotations
 
@@ -14,7 +14,8 @@ from metaglyph.installer.detector import FontDetector
 from metaglyph.installer.system_installer import SystemFontInstaller
 from metaglyph.installer.uninstaller import FontUninstaller
 from metaglyph.installer.user_installer import UserFontInstaller
-from metaglyph.providers.google_fonts import GoogleFontsProvider
+from metaglyph.providers.fontsource import FontsourceProvider
+from metaglyph.providers.fontsquirrel import FontSquirrelProvider
 from metaglyph.providers.nerd_fonts import NerdFontsProvider
 from metaglyph.providers.manager import ProviderManager
 from metaglyph.subsetting.cache import SubsetCache
@@ -27,7 +28,7 @@ from tests.visual.driver import UIDriver
 
 @pytest.mark.asyncio
 async def test_real_font_installations_and_uninstalls(tmp_path: Path) -> None:
-    """Test real font installations of Google Fonts and Nerd Fonts, validate System View and uninstalls."""
+    """Test real font installations of Fontsource and Nerd Fonts, validate System View and uninstalls."""
     # 1. Prepare environment
     config_dir = tmp_path / "config"
     data_dir = tmp_path / "data"
@@ -55,13 +56,14 @@ async def test_real_font_installations_and_uninstalls(tmp_path: Path) -> None:
     repository = FontRepository(db)
 
     # 2. Providers and catalog
-    google_provider = GoogleFontsProvider()
+    fontsource_provider = FontsourceProvider()
     nerd_provider = NerdFontsProvider()
-    provider_manager = ProviderManager(providers=[google_provider, nerd_provider])
+    fontsquirrel_provider = FontSquirrelProvider()
+    provider_manager = ProviderManager(providers=[fontsource_provider, fontsquirrel_provider, nerd_provider])
 
-    google_fonts = await google_provider.fetch_catalog()
-    cinzel_font = next(f for f in google_fonts if f.family_name == "Cinzel")
-    playfair_font = next(f for f in google_fonts if f.family_name == "Playfair Display")
+    fs_fonts = await fontsource_provider.fetch_catalog()
+    cinzel_font = next(f for f in fs_fonts if f.family_name == "Cinzel")
+    playfair_font = next(f for f in fs_fonts if f.family_name == "Playfair Display")
 
     nerd_fonts = await nerd_provider.fetch_catalog()
     hack_nf_font = next(f for f in nerd_fonts if "Hack" in f.family_name)
@@ -100,7 +102,7 @@ async def test_real_font_installations_and_uninstalls(tmp_path: Path) -> None:
     await driver.wait_for_idle(200)
 
     try:
-        # 4. Install Cinzel (Google Font) from Detail Pane
+        # 4. Install Cinzel (Fontsource) from Detail Pane
         await driver.navigate_to("search")
         await driver.search("Cinzel")
         await driver.wait_for_idle(200)
@@ -140,8 +142,9 @@ async def test_real_font_installations_and_uninstalls(tmp_path: Path) -> None:
         await driver.navigate_to("system")
         await driver.wait_for_idle(300)
 
+        total_files = len(res_cinzel.installed_files) + len(res_hack.installed_files) + len(res_playfair.installed_files)
         assert len(window.system_view._family_widgets) == 3
-        assert len(window.system_view._card_widgets) == 10
+        assert len(window.system_view._card_widgets) == total_files
         card_titles = [c.name_label.text() for c in window.system_view._card_widgets]
         assert any("Cinzel" in t for t in card_titles)
         assert any(hack_nf_font.family_name in t for t in card_titles)
@@ -152,8 +155,9 @@ async def test_real_font_installations_and_uninstalls(tmp_path: Path) -> None:
         await window.system_view.uninstall_single_async(pf_card.item)
         await driver.wait_for_idle(200)
 
+        remaining_after_pf = len(res_cinzel.installed_files) + len(res_hack.installed_files)
         assert len(window.system_view._family_widgets) == 2
-        assert len(window.system_view._card_widgets) == 6
+        assert len(window.system_view._card_widgets) == remaining_after_pf
         assert await repository.get_installed_font("playfair-display") is None
         for f in res_playfair.installed_files:
             assert not f.exists()
@@ -182,12 +186,13 @@ async def test_real_font_installations_and_uninstalls(tmp_path: Path) -> None:
         await driver.close_detail_pane()
         await driver.navigate_to("system")
         await driver.wait_for_idle(300)
+        total_batch = len(res_cinzel2.installed_files) + len(res_hack.installed_files)
         assert len(window.system_view._family_widgets) == 2
-        assert len(window.system_view._card_widgets) == 6
+        assert len(window.system_view._card_widgets) == total_batch
 
         await driver.select_all_system_fonts(True)
         assert window.system_view._batch_uninstall_btn.isEnabled()
-        assert "6 of 6 selected" in window.system_view._batch_count_label.text()
+        assert f"{total_batch} of {total_batch} selected" in window.system_view._batch_count_label.text()
 
         selected = window.system_view.get_selected_items()
         batch_results = await window.system_view.batch_uninstall_async(selected)

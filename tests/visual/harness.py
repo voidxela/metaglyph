@@ -330,7 +330,7 @@ class VisualHarness:
         self.provider_manager = MagicMock(spec=ProviderManager)
         self.provider_manager.fetch_sample_subset = AsyncMock(return_value=self.test_ttf_path)
         self.provider_manager.download_font_family = AsyncMock(return_value=[self.test_ttf_path])
-        self.provider_manager.sync_all = AsyncMock(return_value={"google": 5, "fontsource": 3, "nerd_fonts": 2})
+        self.provider_manager.sync_all = AsyncMock(return_value={"fontsquirrel": 5, "fontsource": 3, "nerd_fonts": 2})
 
         self.subset_fetcher = SubsetFetcher(
             cache=subset_cache,
@@ -402,12 +402,12 @@ class VisualHarness:
                 curated_category="Interface",
                 is_variable=True,
                 has_nerd_font=False,
-                primary_provider="google",
+                primary_provider="fontsquirrel",
                 last_synced_at=1700000000,
                 variants=[
                     FontVariant(
                         font_id="inter",
-                        provider="google",
+                        provider="fontsquirrel",
                         style="normal",
                         weight=400,
                         file_format="ttf",
@@ -415,7 +415,7 @@ class VisualHarness:
                     ),
                     FontVariant(
                         font_id="inter",
-                        provider="google",
+                        provider="fontsquirrel",
                         style="normal",
                         weight=700,
                         file_format="ttf",
@@ -520,12 +520,12 @@ class VisualHarness:
                 curated_category="Prose",
                 is_variable=True,
                 has_nerd_font=False,
-                primary_provider="google",
+                primary_provider="fontsquirrel",
                 last_synced_at=1700000000,
                 variants=[
                     FontVariant(
                         font_id="playfair-display",
-                        provider="google",
+                        provider="fontsquirrel",
                         style="normal",
                         weight=400,
                         file_format="ttf",
@@ -540,12 +540,12 @@ class VisualHarness:
                 curated_category="Header",
                 is_variable=True,
                 has_nerd_font=False,
-                primary_provider="google",
+                primary_provider="fontsquirrel",
                 last_synced_at=1700000000,
                 variants=[
                     FontVariant(
                         font_id="montserrat",
-                        provider="google",
+                        provider="fontsquirrel",
                         style="normal",
                         weight=400,
                         file_format="ttf",
@@ -560,12 +560,12 @@ class VisualHarness:
                 curated_category="Handwriting",
                 is_variable=True,
                 has_nerd_font=False,
-                primary_provider="google",
+                primary_provider="fontsquirrel",
                 last_synced_at=1700000000,
                 variants=[
                     FontVariant(
                         font_id="caveat",
-                        provider="google",
+                        provider="fontsquirrel",
                         style="normal",
                         weight=400,
                         file_format="ttf",
@@ -580,12 +580,12 @@ class VisualHarness:
                 curated_category="Display",
                 is_variable=False,
                 has_nerd_font=False,
-                primary_provider="google",
+                primary_provider="fontsquirrel",
                 last_synced_at=1700000000,
                 variants=[
                     FontVariant(
                         font_id="bebas-neue",
-                        provider="google",
+                        provider="fontsquirrel",
                         style="normal",
                         weight=400,
                         file_format="ttf",
@@ -601,7 +601,7 @@ class VisualHarness:
         installed_inter = InstalledFont(
             font_id="inter",
             family_name="Inter",
-            provider="google",
+            provider="fontsquirrel",
             install_scope="User",
             installed_at=1700000000,
             file_paths=["/home/user/.local/share/fonts/Inter-Regular.ttf"],

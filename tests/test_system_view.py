@@ -71,7 +71,7 @@ async def test_system_view_search_and_scope_filtering(
             id="roboto",
             family_name="Roboto",
             category="sans-serif",
-            primary_provider="google",
+            primary_provider="fontsquirrel",
             last_synced_at=1700000000,
         ),
     ])
@@ -90,7 +90,7 @@ async def test_system_view_search_and_scope_filtering(
         InstalledFont(
             font_id="roboto",
             family_name="Roboto",
-            provider="google",
+            provider="fontsquirrel",
             install_scope="System",
             installed_at=1700000000,
             file_paths=["/usr/share/fonts/Roboto.ttf"],
@@ -200,7 +200,7 @@ async def test_system_view_batch_selection_and_uninstall(
             id="font-b",
             family_name="Font B",
             category="sans-serif",
-            primary_provider="google",
+            primary_provider="fontsquirrel",
             last_synced_at=1700000000,
         ),
     ])
@@ -219,7 +219,7 @@ async def test_system_view_batch_selection_and_uninstall(
         InstalledFont(
             font_id="font-b",
             family_name="Font B",
-            provider="google",
+            provider="fontsquirrel",
             install_scope="User",
             installed_at=1700000000,
             file_paths=[str(f2)],

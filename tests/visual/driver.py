@@ -153,7 +153,7 @@ class UIDriver:
         await self.wait_for_idle(100)
 
     async def toggle_provider_filter(self, provider_key: str, active: bool = True) -> bool:
-        """Toggle provider chip in filter bar (e.g. 'google', 'fontsource', 'nerd_fonts')."""
+        """Toggle provider chip in filter bar (e.g. 'fontsquirrel', 'fontsource', 'nerd_fonts')."""
         filter_bar = self.window.search_view.filter_bar
         target_val = provider_key.lower() if active else None
         filter_bar.set_provider(target_val)

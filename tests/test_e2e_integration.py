@@ -71,12 +71,12 @@ async def test_e2e_browse_inspect_install_uninstall_workflow(
         family_name="Inter",
         category="sans-serif",
         curated_category="Interface",
-        primary_provider="google",
+        primary_provider="fontsquirrel",
         last_synced_at=1700000000,
         variants=[
             FontVariant(
                 font_id="inter",
-                provider="google",
+                provider="fontsquirrel",
                 style="normal",
                 weight=400,
                 file_format="ttf",

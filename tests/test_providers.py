@@ -16,7 +16,7 @@ from metaglyph.db.models import Font, FontVariant
 from metaglyph.db.repository import FontRepository
 from metaglyph.providers.base import BaseFontProvider
 from metaglyph.providers.fontsource import FontsourceProvider
-from metaglyph.providers.google_fonts import GoogleFontsProvider
+from metaglyph.providers.fontsquirrel import FontSquirrelProvider
 from metaglyph.providers.manager import ProviderManager
 from metaglyph.providers.nerd_fonts import NerdFontsProvider
 from metaglyph.subsetting.cache import SubsetCache
@@ -28,153 +28,191 @@ def create_mock_transport(handler) -> httpx.MockTransport:
 
 
 # ---------------------------------------------------------------------------
-# Google Fonts Provider Tests
+# Font Squirrel Provider Tests
 # ---------------------------------------------------------------------------
 
 
-def test_google_fonts_parse_variant_string() -> None:
-    """Verify variant string parsing for Google Fonts tokens."""
-    provider = GoogleFontsProvider()
-
-    v_reg = provider.parse_variant_string("regular", "roboto", "Roboto")
-    assert v_reg.weight == 400
-    assert v_reg.style == "normal"
-
-    v_italic = provider.parse_variant_string("italic", "roboto", "Roboto")
-    assert v_italic.weight == 400
-    assert v_italic.style == "italic"
-
-    v_bold_italic = provider.parse_variant_string("700italic", "roboto", "Roboto")
-    assert v_bold_italic.weight == 700
-    assert v_bold_italic.style == "italic"
-
-    v_black = provider.parse_variant_string("900", "roboto", "Roboto")
-    assert v_black.weight == 900
-    assert v_black.style == "normal"
+def test_fontsquirrel_classification_mapping() -> None:
+    """Verify classification mapping for Font Squirrel tokens."""
+    provider = FontSquirrelProvider()
+    assert provider.map_classification("Sans Serif") == "sans-serif"
+    assert provider.map_classification("Serif") == "serif"
+    assert provider.map_classification("Slab Serif") == "serif"
+    assert provider.map_classification("Typewriter") == "monospace"
+    assert provider.map_classification("Monospace") == "monospace"
+    assert provider.map_classification("Script") == "handwriting"
+    assert provider.map_classification("Calligraphic") == "handwriting"
+    assert provider.map_classification("Handdrawn") == "handwriting"
+    assert provider.map_classification("Display") == "display"
+    assert provider.map_classification("Novelty") == "display"
+    assert provider.map_classification("Retro") == "display"
+    assert provider.map_classification("Blackletter") == "display"
 
 
 @pytest.mark.asyncio
-async def test_google_fonts_fetch_catalog() -> None:
-    """Verify Google Fonts catalog fetching and JSON response parsing."""
-    mock_metadata = {
-        "familyMetadataList": [
-            {
-                "family": "Roboto",
-                "category": "sans_serif",
-                "variants": ["100", "regular", "700", "700italic"],
-                "axes": [{"tag": "wght", "min": 100, "max": 900}],
-            },
-            {
-                "family": "Fira Code",
-                "category": "monospace",
-                "variants": ["regular", "600"],
-            },
-        ]
-    }
+async def test_fontsquirrel_fetch_catalog() -> None:
+    """Verify Font Squirrel catalog fetching and JSON response parsing."""
+    mock_fontlist = [
+        {
+            "id": "479",
+            "family_name": "1942 report",
+            "is_monocase": "N",
+            "family_urlname": "1942-report",
+            "foundry_name": "Johan Holmdahl",
+            "font_filename": "1942.ttf",
+            "classification": "Typewriter",
+            "family_count": "1",
+        },
+        {
+            "id": "708",
+            "family_name": "ChunkFive",
+            "is_monocase": "N",
+            "family_urlname": "chunkfive",
+            "foundry_name": "The League of Moveable Type",
+            "font_filename": "Chunkfive.otf",
+            "classification": "Serif",
+            "family_count": "1",
+        },
+    ]
 
     def handler(request: httpx.Request) -> httpx.Response:
-        if "metadata/fonts" in str(request.url):
-            return httpx.Response(200, json=mock_metadata)
+        if "fontlist/all" in str(request.url):
+            return httpx.Response(200, json=mock_fontlist)
         return httpx.Response(404)
 
     client = httpx.AsyncClient(transport=create_mock_transport(handler))
-    provider = GoogleFontsProvider(client=client)
+    provider = FontSquirrelProvider(client=client)
 
     fonts = await provider.fetch_catalog()
     assert len(fonts) == 2
 
-    roboto = next(f for f in fonts if f.id == "roboto")
-    assert roboto.family_name == "Roboto"
-    assert roboto.category == "sans-serif"
-    assert roboto.is_variable is True
-    assert roboto.primary_provider == "google"
-    assert len(roboto.variants) == 4
+    report = next(f for f in fonts if f.id == "1942-report")
+    assert report.family_name == "1942 report"
+    assert report.category == "monospace"
+    assert report.curated_category == "Code"
+    assert report.primary_provider == "fontsquirrel"
+    assert len(report.variants) == 1
+    assert report.variants[0].file_format == "ttf"
+    assert "1942-report" in report.variants[0].download_url
 
-    fira = next(f for f in fonts if f.id == "fira-code")
-    assert fira.category == "monospace"
-    assert fira.curated_category == "Code"
-    assert fira.is_variable is False
-    assert len(fira.variants) == 2
+    chunk = next(f for f in fonts if f.id == "chunkfive")
+    assert chunk.family_name == "ChunkFive"
+    assert chunk.category == "serif"
+    assert chunk.curated_category == "Header"
+    assert chunk.variants[0].file_format == "otf"
 
     await provider.close()
 
 
 @pytest.mark.asyncio
-async def test_google_fonts_fetch_sample_subset_css2(temp_dir: Path) -> None:
-    """Verify micro-subset fetching via Google Fonts CSS2 API."""
-    cache = SubsetCache(cache_dir=temp_dir / "google_cache")
-    ttf_data = synthesize_test_font_bytes("Roboto", "Regular")
+async def test_fontsquirrel_fetch_catalog_fallback() -> None:
+    """Verify Font Squirrel falls back to curated catalog if API fails."""
 
     def handler(request: httpx.Request) -> httpx.Response:
-        url_str = str(request.url)
-        if "css2" in url_str:
-            css = (
-                "@font-face {\n"
-                "  font-family: 'Roboto';\n"
-                "  src: url(https://fonts.gstatic.com/s/roboto.ttf) format('truetype');\n"
-                "}"
-            )
-            return httpx.Response(200, text=css)
-        elif "fonts.gstatic.com" in url_str:
-            return httpx.Response(200, content=ttf_data)
-        return httpx.Response(404)
+        return httpx.Response(500)
 
     client = httpx.AsyncClient(transport=create_mock_transport(handler))
-    provider = GoogleFontsProvider(client=client, cache=cache)
+    provider = FontSquirrelProvider(client=client)
 
-    font = Font(
-        id="roboto",
-        family_name="Roboto",
-        category="sans-serif",
-        primary_provider="google",
-        last_synced_at=1000,
-    )
-
-    subset_path = await provider.fetch_sample_subset(font, "Quick Fox")
-    assert subset_path.exists()
-    assert cache.has_subset("roboto", "Quick Fox")
-    assert subset_path.read_bytes() == ttf_data
+    fonts = await provider.fetch_catalog()
+    assert len(fonts) >= 15
+    assert any(f.id == "chunkfive" for f in fonts)
+    assert any(f.id == "league-gothic" for f in fonts)
+    assert all(f.primary_provider == "fontsquirrel" for f in fonts)
 
     await provider.close()
 
 
 @pytest.mark.asyncio
-async def test_google_fonts_download_font_family(temp_dir: Path) -> None:
-    """Verify Google Fonts family zip archive download and extraction."""
-    ttf_regular = synthesize_test_font_bytes("Roboto", "Regular")
-    ttf_bold = synthesize_test_font_bytes("Roboto", "Bold")
+async def test_fontsquirrel_fetch_sample_subset(temp_dir: Path) -> None:
+    """Verify micro-subset fetching from Font Squirrel kit zip."""
+    cache = SubsetCache(cache_dir=temp_dir / "fontsquirrel_cache")
+    ttf_data = synthesize_test_font_bytes("ChunkFive", "Regular")
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w") as z:
-        z.writestr("Roboto-Regular.ttf", ttf_regular)
-        z.writestr("Roboto-Bold.ttf", ttf_bold)
-        z.writestr("OFL.txt", "Open Font License")
+        z.writestr("Chunkfive-Regular.otf", ttf_data)
+        z.writestr("stylesheet.css", "body {}")
 
     zip_bytes = zip_buffer.getvalue()
 
     def handler(request: httpx.Request) -> httpx.Response:
-        if "download" in str(request.url):
+        if "fontfacekit" in str(request.url) or "download" in str(request.url):
             return httpx.Response(200, content=zip_bytes)
         return httpx.Response(404)
 
     client = httpx.AsyncClient(transport=create_mock_transport(handler))
-    provider = GoogleFontsProvider(client=client)
+    provider = FontSquirrelProvider(client=client, cache=cache)
 
     font = Font(
-        id="roboto",
-        family_name="Roboto",
-        category="sans-serif",
-        primary_provider="google",
+        id="chunkfive",
+        family_name="ChunkFive",
+        category="serif",
+        primary_provider="fontsquirrel",
         last_synced_at=1000,
+        variants=[
+            FontVariant(
+                font_id="chunkfive",
+                provider="fontsquirrel",
+                style="normal",
+                weight=400,
+                file_format="otf",
+                download_url="https://www.fontsquirrel.com/fontfacekit/chunkfive",
+            )
+        ],
     )
 
-    out_dir = temp_dir / "dl_google"
+    subset_path = await provider.fetch_sample_subset(font, "Quick Fox")
+    assert subset_path.exists()
+    assert cache.has_subset("chunkfive", "Quick Fox")
+
+    await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_fontsquirrel_download_font_family(temp_dir: Path) -> None:
+    """Verify Font Squirrel family zip kit download and font file extraction."""
+    ttf_regular = synthesize_test_font_bytes("ChunkFive", "Regular")
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as z:
+        z.writestr("Chunkfive.otf", ttf_regular)
+        z.writestr("license.txt", "SIL Open Font License")
+        z.writestr("__MACOSX/._Chunkfive.otf", b"junk")
+
+    zip_bytes = zip_buffer.getvalue()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=zip_bytes)
+
+    client = httpx.AsyncClient(transport=create_mock_transport(handler))
+    provider = FontSquirrelProvider(client=client)
+
+    font = Font(
+        id="chunkfive",
+        family_name="ChunkFive",
+        category="serif",
+        primary_provider="fontsquirrel",
+        last_synced_at=1000,
+        variants=[
+            FontVariant(
+                font_id="chunkfive",
+                provider="fontsquirrel",
+                style="normal",
+                weight=400,
+                file_format="otf",
+                download_url="https://www.fontsquirrel.com/fontfacekit/chunkfive",
+            )
+        ],
+    )
+
+    out_dir = temp_dir / "dl_fontsquirrel"
     downloaded = await provider.download_font_family(font, out_dir)
 
-    assert len(downloaded) == 2
-    assert any(p.name == "Roboto-Regular.ttf" for p in downloaded)
-    assert any(p.name == "Roboto-Bold.ttf" for p in downloaded)
-    assert not any(p.name == "OFL.txt" for p in downloaded)
+    assert len(downloaded) == 1
+    assert downloaded[0].name == "Chunkfive.otf"
+    assert not any("license.txt" in p.name for p in downloaded)
+    assert not any("__MACOSX" in str(p) for p in downloaded)
 
     await provider.close()
 
@@ -527,57 +565,19 @@ async def test_provider_manager_sync_and_linking(
 
 
 @pytest.mark.asyncio
-async def test_google_fonts_fallback_subset(temp_dir: Path) -> None:
-    """Verify GoogleFontsProvider falls back to downloading archive when CSS2 endpoint fails."""
-    cache = SubsetCache(cache_dir=temp_dir / "google_fallback_cache")
-    ttf_data = synthesize_test_font_bytes("Roboto", "Regular")
-
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w") as z:
-        z.writestr("Roboto-Regular.ttf", ttf_data)
-    zip_bytes = zip_buffer.getvalue()
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        url_str = str(request.url)
-        if "css2" in url_str:
-            # Simulate CSS2 500 error
-            return httpx.Response(500)
-        elif "download" in url_str:
-            return httpx.Response(200, content=zip_bytes)
-        return httpx.Response(404)
-
-    client = httpx.AsyncClient(transport=create_mock_transport(handler))
-    provider = GoogleFontsProvider(client=client, cache=cache)
-
-    font = Font(
-        id="roboto",
-        family_name="Roboto",
-        category="sans-serif",
-        primary_provider="google",
-        last_synced_at=1000,
-    )
-
-    subset_path = await provider.fetch_sample_subset(font, "Fallback Sample")
-    assert subset_path.exists()
-    assert cache.has_subset("roboto", "Fallback Sample")
-
-    await provider.close()
-
-
-@pytest.mark.asyncio
 async def test_provider_manager_routing(temp_dir: Path) -> None:
     """Verify ProviderManager routes subset and download calls to the correct provider."""
-    mock_google = MagicMock(spec=BaseFontProvider)
-    mock_google.name = "google"
-    mock_google.fetch_sample_subset = AsyncMock(return_value=temp_dir / "google.ttf")
-    mock_google.download_font_family = AsyncMock(return_value=[temp_dir / "google.ttf"])
+    mock_fontsquirrel = MagicMock(spec=BaseFontProvider)
+    mock_fontsquirrel.name = "fontsquirrel"
+    mock_fontsquirrel.fetch_sample_subset = AsyncMock(return_value=temp_dir / "fontsquirrel.ttf")
+    mock_fontsquirrel.download_font_family = AsyncMock(return_value=[temp_dir / "fontsquirrel.ttf"])
 
     mock_fontsource = MagicMock(spec=BaseFontProvider)
     mock_fontsource.name = "fontsource"
     mock_fontsource.fetch_sample_subset = AsyncMock(return_value=temp_dir / "fontsource.ttf")
     mock_fontsource.download_font_family = AsyncMock(return_value=[temp_dir / "fontsource.ttf"])
 
-    manager = ProviderManager(providers=[mock_google, mock_fontsource])
+    manager = ProviderManager(providers=[mock_fontsquirrel, mock_fontsource])
 
     font_fs = Font(
         id="inter",
@@ -593,9 +593,9 @@ async def test_provider_manager_routing(temp_dir: Path) -> None:
     assert mock_fontsource.fetch_sample_subset.call_count == 1
 
     # 2. Download with preferred provider override
-    res_override = await manager.download_font_family(font_fs, temp_dir, preferred_provider="google")
-    assert res_override == [temp_dir / "google.ttf"]
-    assert mock_google.download_font_family.call_count == 1
+    res_override = await manager.download_font_family(font_fs, temp_dir, preferred_provider="fontsquirrel")
+    assert res_override == [temp_dir / "fontsquirrel.ttf"]
+    assert mock_fontsquirrel.download_font_family.call_count == 1
 
     # 3. Unknown provider lookup error
     with pytest.raises(KeyError):

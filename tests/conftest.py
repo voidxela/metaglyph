@@ -188,12 +188,12 @@ def sample_font_inter() -> Font:
         curated_category="Interface",
         is_variable=True,
         has_nerd_font=False,
-        primary_provider="google",
+        primary_provider="fontsquirrel",
         last_synced_at=1700000000,
         variants=[
             FontVariant(
                 font_id="inter",
-                provider="google",
+                provider="fontsquirrel",
                 style="normal",
                 weight=400,
                 file_format="ttf",
