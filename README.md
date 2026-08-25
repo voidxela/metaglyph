@@ -118,7 +118,7 @@ cd ..
 
 | View | Description |
 | :--- | :--- |
-| **✦ Discover** | Curated category dashboard for Interface, Code, Header, Prose, Display, and Handwriting typography with featured font spotlight cards. |
+| **✦ Discover** | Curated category dashboard for Featured, Interface, Code, Header, Prose, Display, and Handwriting typography with featured font spotlight cards. |
 | **🔍 Search & Browse** | High-performance search with 200ms debounce, category/provider filter chips, variable & Nerd font toggles, and live micro-subset font previews. |
 | **Inspector Drawer** | Real-time font tuner with live point size slider (10pt–72pt), weight selector (100–900), custom editable sample text, Nerd Font counterpart banner, and User/System scope installation. |
 | **💻 System Registry** | OS font directory scanner tracking locally installed fonts and Metaglyph-managed installations with batch uninstallation. |

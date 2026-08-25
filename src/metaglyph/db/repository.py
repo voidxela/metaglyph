@@ -17,8 +17,11 @@ from metaglyph.db.models import (
     SystemFontCacheEntry,
 )
 from metaglyph.db.normalizer import (
+    FEATURED_FONT_NAMES,
+    FEATURED_FONT_SLUGS,
     curate_category,
     extract_nerd_font_counterpart,
+    is_featured_font,
     is_nerd_font,
     normalize_family_name,
     should_replace_primary_provider,
@@ -362,6 +365,25 @@ class FontRepository:
 
         return None
 
+    def _build_featured_where_clause(self) -> tuple[str, list[Any]]:
+        """Construct SQL WHERE clause and parameters for the Featured curated category."""
+        slugs = sorted(FEATURED_FONT_SLUGS)
+        names = sorted({n.lower() for n in FEATURED_FONT_NAMES})
+        placeholders_slugs = ",".join("?" for _ in slugs)
+        placeholders_names = ",".join("?" for _ in names)
+
+        clause = (
+            f"("
+            f"LOWER(id) IN ({placeholders_slugs}) "
+            f"OR LOWER(family_name) IN ({placeholders_names}) "
+            f"OR REPLACE(LOWER(family_name), ' ', '-') IN ({placeholders_slugs}) "
+            f"OR nerd_font_slug IN ({placeholders_slugs}) "
+            f"OR LOWER(curated_category) = 'featured'"
+            f")"
+        )
+        params = list(slugs) + list(names) + list(slugs) + list(slugs)
+        return clause, params
+
     async def search_fonts(self, filter_params: FontFilter) -> tuple[list[Font], int]:
         """Search and filter fonts returning paginated results and total match count."""
         where_clauses: list[str] = []
@@ -376,17 +398,29 @@ class FontRepository:
             cat_clauses = []
             for cat in filter_params.categories:
                 clean_c = cat.strip().lower()
-                cat_clauses.append("(LOWER(category) = ? OR LOWER(curated_category) = ?)")
-                params.extend([clean_c, clean_c])
-            where_clauses.append(f"({' OR '.join(cat_clauses)})")
+                if clean_c == "featured":
+                    f_clause, f_params = self._build_featured_where_clause()
+                    cat_clauses.append(f_clause)
+                    params.extend(f_params)
+                else:
+                    cat_clauses.append("(LOWER(category) = ? OR LOWER(curated_category) = ?)")
+                    params.extend([clean_c, clean_c])
+            if cat_clauses:
+                where_clauses.append(f"({' OR '.join(cat_clauses)})")
 
         if filter_params.curated_categories:
             cat_clauses = []
             for cat in filter_params.curated_categories:
                 clean_c = cat.strip().lower()
-                cat_clauses.append("(LOWER(curated_category) = ? OR LOWER(category) = ?)")
-                params.extend([clean_c, clean_c])
-            where_clauses.append(f"({' OR '.join(cat_clauses)})")
+                if clean_c == "featured":
+                    f_clause, f_params = self._build_featured_where_clause()
+                    cat_clauses.append(f_clause)
+                    params.extend(f_params)
+                else:
+                    cat_clauses.append("(LOWER(curated_category) = ? OR LOWER(category) = ?)")
+                    params.extend([clean_c, clean_c])
+            if cat_clauses:
+                where_clauses.append(f"({' OR '.join(cat_clauses)})")
 
         if filter_params.providers:
             placeholders = ",".join("?" for _ in filter_params.providers)
@@ -478,6 +512,15 @@ class FontRepository:
         """Return font count by category and curated category."""
         counts: dict[str, int] = {}
         async with self._db.connection() as conn:
+            # Count featured fonts
+            f_clause, f_params = self._build_featured_where_clause()
+            feat_cursor = await conn.execute(
+                f"SELECT COUNT(*) AS cnt FROM fonts WHERE {f_clause}",
+                tuple(f_params),
+            )
+            feat_row = await feat_cursor.fetchone()
+            counts["Featured"] = feat_row["cnt"] if feat_row else 0
+
             cursor = await conn.execute(
                 "SELECT curated_category, COUNT(*) AS cnt FROM fonts WHERE curated_category IS NOT NULL GROUP BY curated_category"
             )

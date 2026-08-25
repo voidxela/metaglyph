@@ -231,3 +231,73 @@ def get_provider_priority(provider: str) -> int:
 def should_replace_primary_provider(existing_provider: str, new_provider: str) -> bool:
     """Return True if new_provider has higher priority than existing_provider."""
     return get_provider_priority(new_provider) < get_provider_priority(existing_provider)
+
+
+# Manually curated Featured selection font slugs and family names:
+# iosevka, iosevkaterm, fira code, meslo, bitstream vera mono, bitstream vera sans,
+# bitstream vera serif, crimson text, crimson pro, gandhi serif, plus jakarta sans,
+# arimo, barlow condensed
+FEATURED_FONT_SLUGS: set[str] = {
+    "iosevka",
+    "iosevkaterm",
+    "iosevka-term",
+    "fira-code",
+    "firacode",
+    "meslo",
+    "meslo-lg",
+    "meslo-lg-m",
+    "meslo-lg-s",
+    "meslo-lg-l",
+    "bitstream-vera-mono",
+    "bitstream-vera-sans-mono",
+    "bitstream-vera-sans",
+    "bitstream-vera-serif",
+    "crimson-text",
+    "crimson-pro",
+    "gandhi-serif",
+    "plus-jakarta-sans",
+    "arimo",
+    "barlow-condensed",
+}
+
+FEATURED_FONT_NAMES: list[str] = [
+    "iosevka",
+    "iosevkaterm",
+    "iosevka term",
+    "fira code",
+    "firacode",
+    "meslo",
+    "meslo lg",
+    "meslo lg m",
+    "meslo lg s",
+    "meslo lg l",
+    "bitstream vera mono",
+    "bitstream vera sans mono",
+    "bitstream vera sans",
+    "bitstream vera serif",
+    "crimson text",
+    "crimson pro",
+    "gandhi serif",
+    "plus jakarta sans",
+    "arimo",
+    "barlow condensed",
+]
+
+
+def is_featured_font(font_id: str, family_name: str | None = None) -> bool:
+    """Check if a font belongs to the manually curated Featured category.
+
+    Matches by font ID, canonical slug, family name, or base counterpart slug.
+    """
+    norm_id = normalize_family_name(font_id)
+    if norm_id in FEATURED_FONT_SLUGS or font_id.lower().strip() in FEATURED_FONT_SLUGS:
+        return True
+    if family_name:
+        norm_fam = normalize_family_name(family_name)
+        if norm_fam in FEATURED_FONT_SLUGS or family_name.strip().lower() in FEATURED_FONT_NAMES:
+            return True
+        base_slug, _ = extract_nerd_font_counterpart(family_name)
+        if base_slug in FEATURED_FONT_SLUGS:
+            return True
+    return False
+

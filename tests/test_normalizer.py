@@ -110,3 +110,35 @@ def test_provider_priorities() -> None:
     assert should_replace_primary_provider("nerd_fonts", "fontsquirrel") is True
     # Nerd Fonts does not replace Font Squirrel
     assert should_replace_primary_provider("fontsquirrel", "nerd_fonts") is False
+
+
+@pytest.mark.parametrize(
+    "font_id, family_name, expected",
+    [
+        ("iosevka", "Iosevka", True),
+        ("iosevkaterm", "iosevkaterm", True),
+        ("iosevka-term", "Iosevka Term", True),
+        ("fira-code", "Fira Code", True),
+        ("firacode", "FiraCode", True),
+        ("meslo", "Meslo", True),
+        ("meslo-lg", "Meslo LG", True),
+        ("meslo-lg-nerd-font", "MesloLG Nerd Font", True),
+        ("bitstream-vera-mono", "Bitstream Vera Mono", True),
+        ("bitstream-vera-sans", "Bitstream Vera Sans", True),
+        ("bitstream-vera-serif", "Bitstream Vera Serif", True),
+        ("crimson-text", "Crimson Text", True),
+        ("crimson-pro", "Crimson Pro", True),
+        ("gandhi-serif", "Gandhi Serif", True),
+        ("plus-jakarta-sans", "Plus Jakarta Sans", True),
+        ("arimo", "Arimo", True),
+        ("barlow-condensed", "Barlow Condensed", True),
+        ("inter", "Inter", False),
+        ("roboto", "Roboto", False),
+        ("playfair-display", "Playfair Display", False),
+    ],
+)
+def test_is_featured_font(font_id: str, family_name: str, expected: bool) -> None:
+    """Verify all 13 curated selection typefaces are recognized as Featured."""
+    from metaglyph.db.normalizer import is_featured_font
+
+    assert is_featured_font(font_id, family_name) == expected

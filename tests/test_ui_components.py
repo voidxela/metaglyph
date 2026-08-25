@@ -285,14 +285,34 @@ async def test_discover_view_category_clicks_and_counts(
     sample_font_jetbrains: Font,
     sample_font_inter: Font,
 ) -> None:
-    await repository.upsert_fonts([sample_font_jetbrains, sample_font_inter])
+    # JetBrains Mono is in Code and Inter is in Interface.
+    # Add a featured font: Fira Code
+    sample_font_fira = Font(
+        id="fira-code",
+        family_name="Fira Code",
+        category="monospace",
+        curated_category="Code",
+        is_variable=True,
+        has_nerd_font=True,
+        primary_provider="fontsource",
+        last_synced_at=1700000000,
+    )
+    await repository.upsert_fonts([sample_font_jetbrains, sample_font_inter, sample_font_fira])
 
     discover = DiscoverView(repository=repository)
-    assert len(discover._category_cards) == 9
+    assert len(discover._category_cards) == 10
+
+    # Verify Featured is first card
+    first_cat = list(discover._category_cards.keys())[0]
+    assert first_cat == "Featured"
 
     # Category click
     selected_cats: list[str] = []
     discover.category_selected.connect(selected_cats.append)
+
+    featured_card = discover._category_cards["Featured"]
+    QTest.mouseClick(featured_card, Qt.MouseButton.LeftButton)
+    assert "Featured" in selected_cats
 
     code_card = discover._category_cards["Code"]
     QTest.mouseClick(code_card, Qt.MouseButton.LeftButton)
@@ -300,7 +320,8 @@ async def test_discover_view_category_clicks_and_counts(
 
     # Refresh counts
     await discover.refresh_stats()
-    assert "1 fonts" in discover._category_cards["Code"]._count_badge.text()
+    assert "1 fonts" in discover._category_cards["Featured"]._count_badge.text()
+    assert "2 fonts" in discover._category_cards["Code"]._count_badge.text()
     assert "1 fonts" in discover._category_cards["Interface"]._count_badge.text()
 
 

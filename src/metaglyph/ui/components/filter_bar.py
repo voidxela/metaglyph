@@ -20,6 +20,7 @@ from metaglyph.db.models import FontFilter
 
 CATEGORIES = [
     ("All", None),
+    ("Featured", "Featured"),
     ("Interface", "Interface"),
     ("Code", "Code"),
     ("Header", "Header"),
@@ -174,7 +175,7 @@ class FilterBar(QWidget):
         self.setLayout(root_layout)
 
     def _on_category_clicked(self, category_val: str | None) -> None:
-        curated_names = {"interface", "code", "header", "prose", "display", "handwriting"}
+        curated_names = {"featured", "interface", "code", "header", "prose", "display", "handwriting"}
         if category_val and category_val.lower() in curated_names:
             self._active_curated_category = category_val
             self._active_category = None
@@ -219,7 +220,7 @@ class FilterBar(QWidget):
 
     def set_category(self, category: str | None) -> None:
         """Programmatically select category filter."""
-        curated_names = {"interface", "code", "header", "prose", "display", "handwriting"}
+        curated_names = {"featured", "interface", "code", "header", "prose", "display", "handwriting"}
         if category and category.lower() in curated_names:
             self.set_curated_category(category)
             return

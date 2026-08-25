@@ -27,6 +27,13 @@ logger = logging.getLogger(__name__)
 
 CURATED_CATEGORY_METADATA = [
     {
+        "category": "Featured",
+        "icon": "star",
+        "title": "Featured",
+        "description": "Hand-picked open-source typefaces showcasing exceptional craftsmanship across programming, editorial, and interface design.",
+        "examples": ["Iosevka", "Fira Code", "Plus Jakarta Sans"],
+    },
+    {
         "category": "Interface",
         "icon": "layout",
         "title": "Interface",

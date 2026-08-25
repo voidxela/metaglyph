@@ -47,7 +47,7 @@ The application is structured around three primary views accessed via a sidebar 
 
 A visual dashboard using `QScrollArea` and grid layouts to present curated font groupings.
 
-* **Categories:** Interface, Code, Header, Prose, Display, Handwriting. Clicking a category acts as a quick-filter for the Search page.
+* **Categories:** Featured, Interface, Code, Header, Prose, Display, Handwriting. Clicking a category acts as a quick-filter for the Search page.
 
 ### B. Search & Browse Page
 

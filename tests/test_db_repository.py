@@ -164,25 +164,43 @@ async def test_search_and_filtering(
     assert total == 1
     assert results[0].id == "inter"
 
+    # Search by Featured curated category
+    sample_font_fira = Font(
+        id="fira-code",
+        family_name="Fira Code",
+        category="monospace",
+        curated_category="Code",
+        is_variable=True,
+        has_nerd_font=True,
+        primary_provider="fontsource",
+        last_synced_at=1700000000,
+    )
+    await repository.upsert_font(sample_font_fira)
+
+    featured_results, featured_total = await repository.search_fonts(
+        FontFilter(curated_categories=["Featured"])
+    )
+    assert featured_total == 1
+    assert featured_results[0].id == "fira-code"
+
     # Search by provider
     results, total = await repository.search_fonts(
         FontFilter(providers=["fontsource"])
     )
-    assert total == 1
-    assert results[0].id == "jetbrains-mono"
+    assert total == 2
+    assert {r.id for r in results} == {"jetbrains-mono", "fira-code"}
 
     # Search by Nerd Font availability
     results, total = await repository.search_fonts(
         FontFilter(has_nerd_font=True)
     )
-    assert total == 1
-    assert results[0].id == "jetbrains-mono"
+    assert total == 2
 
     # Pagination test
     results, total = await repository.search_fonts(
         FontFilter(limit=1, offset=1)
     )
-    assert total == 2
+    assert total == 3
     assert len(results) == 1
 
 
@@ -193,11 +211,22 @@ async def test_category_counts(
     sample_font_inter: Font,
 ) -> None:
     """Test curated category counting."""
-    await repository.upsert_fonts([sample_font_jetbrains, sample_font_inter])
+    sample_font_fira = Font(
+        id="fira-code",
+        family_name="Fira Code",
+        category="monospace",
+        curated_category="Code",
+        is_variable=True,
+        has_nerd_font=True,
+        primary_provider="fontsource",
+        last_synced_at=1700000000,
+    )
+    await repository.upsert_fonts([sample_font_jetbrains, sample_font_inter, sample_font_fira])
     counts = await repository.get_curated_category_counts()
 
-    assert counts.get("Code") == 1
+    assert counts.get("Code") == 2
     assert counts.get("Interface") == 1
+    assert counts.get("Featured") == 1
 
 
 @pytest.mark.asyncio

@@ -28,6 +28,7 @@ class Config(BaseModel):
     default_font_size: float = 24.0
     curated_categories: list[str] = Field(
         default_factory=lambda: [
+            "Featured",
             "Interface",
             "Code",
             "Header",
