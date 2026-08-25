@@ -235,7 +235,7 @@ class DiscoverView(QWidget):
         spotlight_layout.addWidget(spotlight_title)
 
         spotlight_subtitle = QLabel(
-            "Browse thousands of open-source fonts from Fontsource, Google Fonts, and Nerd Fonts with live native previews.",
+            "Browse thousands of open-source fonts from Fontsource, Font Squirrel, and Nerd Fonts with live native previews.",
             spotlight,
         )
         spotlight_subtitle.setObjectName("spotlightSubtitle")

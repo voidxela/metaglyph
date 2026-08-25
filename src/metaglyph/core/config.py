@@ -41,7 +41,7 @@ class Config(BaseModel):
     provider_priorities: dict[str, int] = Field(
         default_factory=lambda: {
             "fontsource": 1,
-            "google": 2,
+            "fontsquirrel": 2,
             "nerd_fonts": 3,
         }
     )

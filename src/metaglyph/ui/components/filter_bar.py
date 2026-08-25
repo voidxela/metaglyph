@@ -34,7 +34,7 @@ CATEGORIES = [
 PROVIDERS = [
     ("All", None),
     ("Fontsource", "fontsource"),
-    ("Google Fonts", "google"),
+    ("Font Squirrel", "fontsquirrel"),
     ("Nerd Fonts", "nerd_fonts"),
 ]
 

@@ -12,7 +12,7 @@ from metaglyph.db.models import Font, FontVariant
 from metaglyph.db.repository import FontRepository
 from metaglyph.providers.base import BaseFontProvider
 from metaglyph.providers.fontsource import FontsourceProvider
-from metaglyph.providers.google_fonts import GoogleFontsProvider
+from metaglyph.providers.fontsquirrel import FontSquirrelProvider
 from metaglyph.providers.nerd_fonts import NerdFontsProvider
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class ProviderManager:
         else:
             # Register standard default providers
             self.register_provider(FontsourceProvider())
-            self.register_provider(GoogleFontsProvider())
+            self.register_provider(FontSquirrelProvider())
             self.register_provider(NerdFontsProvider())
 
     def register_provider(self, provider: BaseFontProvider) -> None:

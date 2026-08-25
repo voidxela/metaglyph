@@ -12,7 +12,7 @@ class FontVariant(BaseModel):
 
     id: int | None = None
     font_id: str
-    provider: Literal["google", "fontsource", "nerd_fonts"] | str
+    provider: Literal["fontsquirrel", "fontsource", "nerd_fonts"] | str
     style: Literal["normal", "italic"] | str = "normal"
     weight: int = 400
     file_format: Literal["ttf", "otf", "woff2"] | str = "ttf"
@@ -31,7 +31,7 @@ class Font(BaseModel):
     is_variable: bool = False
     has_nerd_font: bool = False
     nerd_font_slug: str | None = None
-    primary_provider: Literal["google", "fontsource", "nerd_fonts"] | str
+    primary_provider: Literal["fontsquirrel", "fontsource", "nerd_fonts"] | str
     last_synced_at: int
     variants: list[FontVariant] = Field(default_factory=list)
 
