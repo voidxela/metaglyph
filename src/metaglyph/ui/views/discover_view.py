@@ -70,14 +70,14 @@ CURATED_CATEGORY_METADATA = [
     },
     {
         "category": "Sans-Serif",
-        "icon": "sans-a",
+        "icon": "case-lower",
         "title": "Sans-Serif",
         "description": "Modernist typefaces without serifs, engineered for clarity and visual consistency across all screen resolutions.",
         "examples": ["Inter", "Roboto", "Open Sans"],
     },
     {
         "category": "Serif",
-        "icon": "serif-a",
+        "icon": "type",
         "title": "Serif",
         "description": "Classic typefaces with decorative serifs, designed for elegant literary publishing and comfortable editorial reading.",
         "examples": ["Merriweather", "Lora", "PT Serif"],

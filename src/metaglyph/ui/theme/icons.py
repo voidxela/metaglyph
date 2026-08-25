@@ -1,4 +1,8 @@
-"""Vector icon generator providing crisp, resolution-independent QIcons for Metaglyph."""
+"""Vector icon generator providing crisp, resolution-independent QIcons for Metaglyph.
+
+All icons sourced from standard open-source icon sets (Lucide Icons) to ensure
+consistent 24x24 viewBox, stroke geometry, and aesthetic harmony.
+"""
 
 from __future__ import annotations
 
@@ -6,9 +10,9 @@ from PySide6.QtCore import QByteArray, QSize, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
-# Modern Lucide/SVG icon path data (viewBox 0 0 24 24, stroke-width 2, round joins)
+# Standard Lucide icon SVGs (viewBox 0 0 24 24, stroke-width 2, stroke-linecap/linejoin round)
 ICON_SVGS: dict[str, str] = {
-    # Navigation and UI controls
+    # Navigation & Actions
     "compass": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"></circle>
         <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="{color}" fill-opacity="0.25"></polygon>
@@ -56,7 +60,7 @@ ICON_SVGS: dict[str, str] = {
         <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
     </svg>""",
 
-    # Category specific icons
+    # Category Cards (Official Lucide icons)
     "layout": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="2"></rect>
         <path d="M3 9h18"></path>
@@ -68,8 +72,8 @@ ICON_SVGS: dict[str, str] = {
     </svg>""",
     "heading": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M6 12h12"></path>
-        <path d="M6 4v16"></path>
-        <path d="M18 4v16"></path>
+        <path d="M6 20V4"></path>
+        <path d="M18 20V4"></path>
     </svg>""",
     "book-open": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
@@ -81,13 +85,16 @@ ICON_SVGS: dict[str, str] = {
         <path d="m2 2 7.586 7.586"></path>
         <circle cx="11" cy="11" r="2"></circle>
     </svg>""",
-    # Clean modern geometric single-story sans-serif lowercase 'a'
-    "sans-a": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="{color}">
-        <path d="M12 5C8.13 5 5 8.13 5 12s3.13 7 7 7c1.74 0 3.34-.63 4.6-1.68V19h2.4V7.5h-2.4v1.18C15.34 7.63 13.74 7 12 7zm0 2.4c2.54 0 4.6 2.06 4.6 4.6s-2.06 4.6-4.6 4.6-4.6-2.06-4.6-4.6 2.06-4.6 4.6-4.6z"></path>
+    "case-lower": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 9v7"></path>
+        <path d="M14 6v10"></path>
+        <circle cx="17.5" cy="12.5" r="3.5"></circle>
+        <circle cx="6.5" cy="12.5" r="3.5"></circle>
     </svg>""",
-    # Classical two-story serif lowercase 'a' (Bodoni / Times style with top teardrop terminal and foot serif)
-    "serif-a": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="{color}">
-        <path d="M17.5 4.5c-1.3-.7-3.1-1-4.8-1-4.2 0-7.2 2.2-7.2 5.5 0 2.2 1.5 3.9 3.8 4.5-3.5 1-5.8 2.9-5.8 5.8 0 3.3 3 5.7 7.5 5.7 5.1 0 8.3-2.8 8.3-6.8V7c0-1 .7-1.6 1.7-1.6V4.5h-3.5zm-2.5 13.1c0 2.6-2.3 4.4-5.2 4.4-2.8 0-4.6-1.4-4.6-3.4 0-2.3 2-3.5 5.6-4.1l4.2.7v2.4zm0-4.7l-3.5-.5c-1.8-.3-2.8-1.2-2.8-2.6 0-1.8 1.7-3.2 4.2-3.2 1.4 0 2.6.3 3.3.9v5.4z"></path>
+    "type": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 4v16"></path>
+        <path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"></path>
+        <path d="M9 20h6"></path>
     </svg>""",
     "terminal": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="4 17 10 11 4 5"></polyline>
