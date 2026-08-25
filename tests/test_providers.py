@@ -50,8 +50,8 @@ def test_fontsquirrel_classification_mapping() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fontsquirrel_fetch_catalog() -> None:
-    """Verify Font Squirrel catalog fetching and JSON response parsing."""
+async def test_fontsquirrel_fetch_catalog_official_api() -> None:
+    """Verify Font Squirrel catalog fetching and JSON response parsing from official API."""
     mock_fontlist = [
         {
             "id": "479",
@@ -105,41 +105,59 @@ async def test_fontsquirrel_fetch_catalog() -> None:
 
 
 @pytest.mark.asyncio
-async def test_fontsquirrel_fetch_catalog_fallback() -> None:
-    """Verify Font Squirrel falls back to curated catalog if API fails."""
+async def test_fontsquirrel_fetch_catalog_github_tree() -> None:
+    """Verify Font Squirrel dynamically fetches and parses full catalog from repository tree when official API returns WAF challenge."""
+    mock_tree = {
+        "tree": [
+            {"path": "Fonts/Action-Man/web fonts/actionman_bold_macroman/Action_Man_Bold-webfont.ttf"},
+            {"path": "Fonts/Action-Man/web fonts/actionman_regular_macroman/Action_Man-webfont.ttf"},
+            {"path": "Fonts/ChunkFive/web fonts/chunkfive_regular_macroman/Chunkfive-webfont.ttf"},
+            {"path": "Fonts/1942-report/web fonts/1942report_regular_macroman/1942-webfont.ttf"},
+            {"path": "README.md"},
+        ]
+    }
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(500)
+        url_str = str(request.url)
+        if "fontlist/all" in url_str:
+            # Simulate CloudFront WAF 202 challenge
+            return httpx.Response(202, text="Challenge")
+        elif "trees" in url_str:
+            return httpx.Response(200, json=mock_tree)
+        return httpx.Response(404)
 
     client = httpx.AsyncClient(transport=create_mock_transport(handler))
     provider = FontSquirrelProvider(client=client)
 
     fonts = await provider.fetch_catalog()
-    assert len(fonts) >= 15
-    assert any(f.id == "chunkfive" for f in fonts)
-    assert any(f.id == "league-gothic" for f in fonts)
-    assert all(f.primary_provider == "fontsquirrel" for f in fonts)
+    assert len(fonts) == 3
+
+    action_man = next(f for f in fonts if f.id == "action-man")
+    assert action_man.family_name == "Action Man"
+    assert action_man.primary_provider == "fontsquirrel"
+    assert len(action_man.variants) == 2
+    assert any(v.weight == 700 for v in action_man.variants)
+    assert any(v.weight == 400 for v in action_man.variants)
+    assert all("Action-Man" in v.download_url for v in action_man.variants)
+
+    chunkfive = next(f for f in fonts if f.id == "chunkfive")
+    assert chunkfive.family_name == "Chunkfive"
+    assert chunkfive.category == "serif"
+
+    report = next(f for f in fonts if f.id == "1942-report")
+    assert report.category == "monospace"
 
     await provider.close()
 
 
 @pytest.mark.asyncio
 async def test_fontsquirrel_fetch_sample_subset(temp_dir: Path) -> None:
-    """Verify micro-subset fetching from Font Squirrel kit zip."""
+    """Verify micro-subset fetching from Font Squirrel direct font file and kit."""
     cache = SubsetCache(cache_dir=temp_dir / "fontsquirrel_cache")
     ttf_data = synthesize_test_font_bytes("ChunkFive", "Regular")
 
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w") as z:
-        z.writestr("Chunkfive-Regular.otf", ttf_data)
-        z.writestr("stylesheet.css", "body {}")
-
-    zip_bytes = zip_buffer.getvalue()
-
     def handler(request: httpx.Request) -> httpx.Response:
-        if "fontfacekit" in str(request.url) or "download" in str(request.url):
-            return httpx.Response(200, content=zip_bytes)
-        return httpx.Response(404)
+        return httpx.Response(200, content=ttf_data)
 
     client = httpx.AsyncClient(transport=create_mock_transport(handler))
     provider = FontSquirrelProvider(client=client, cache=cache)
@@ -156,8 +174,8 @@ async def test_fontsquirrel_fetch_sample_subset(temp_dir: Path) -> None:
                 provider="fontsquirrel",
                 style="normal",
                 weight=400,
-                file_format="otf",
-                download_url="https://www.fontsquirrel.com/fontfacekit/chunkfive",
+                file_format="ttf",
+                download_url="https://raw.githubusercontent.com/Jolg42/FontSquirrel-Fonts/master/Fonts/ChunkFive/Chunkfive-webfont.ttf",
             )
         ],
     )
@@ -170,49 +188,52 @@ async def test_fontsquirrel_fetch_sample_subset(temp_dir: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_fontsquirrel_download_font_family(temp_dir: Path) -> None:
-    """Verify Font Squirrel family zip kit download and font file extraction."""
-    ttf_regular = synthesize_test_font_bytes("ChunkFive", "Regular")
-
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w") as z:
-        z.writestr("Chunkfive.otf", ttf_regular)
-        z.writestr("license.txt", "SIL Open Font License")
-        z.writestr("__MACOSX/._Chunkfive.otf", b"junk")
-
-    zip_bytes = zip_buffer.getvalue()
+async def test_fontsquirrel_download_font_family_direct(temp_dir: Path) -> None:
+    """Verify Font Squirrel direct variant downloads for complete font family."""
+    ttf_regular = synthesize_test_font_bytes("Action Man", "Regular")
+    ttf_bold = synthesize_test_font_bytes("Action Man", "Bold")
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=zip_bytes)
+        if "bold" in str(request.url).lower():
+            return httpx.Response(200, content=ttf_bold)
+        return httpx.Response(200, content=ttf_regular)
 
     client = httpx.AsyncClient(transport=create_mock_transport(handler))
     provider = FontSquirrelProvider(client=client)
 
     font = Font(
-        id="chunkfive",
-        family_name="ChunkFive",
-        category="serif",
+        id="action-man",
+        family_name="Action Man",
+        category="sans-serif",
         primary_provider="fontsquirrel",
         last_synced_at=1000,
         variants=[
             FontVariant(
-                font_id="chunkfive",
+                font_id="action-man",
                 provider="fontsquirrel",
                 style="normal",
                 weight=400,
-                file_format="otf",
-                download_url="https://www.fontsquirrel.com/fontfacekit/chunkfive",
-            )
+                file_format="ttf",
+                download_url="https://raw.githubusercontent.com/Jolg42/FontSquirrel-Fonts/master/Action_Man-webfont.ttf",
+            ),
+            FontVariant(
+                font_id="action-man",
+                provider="fontsquirrel",
+                style="normal",
+                weight=700,
+                file_format="ttf",
+                download_url="https://raw.githubusercontent.com/Jolg42/FontSquirrel-Fonts/master/Action_Man_Bold-webfont.ttf",
+            ),
         ],
     )
 
     out_dir = temp_dir / "dl_fontsquirrel"
     downloaded = await provider.download_font_family(font, out_dir)
 
-    assert len(downloaded) == 1
-    assert downloaded[0].name == "Chunkfive.otf"
-    assert not any("license.txt" in p.name for p in downloaded)
-    assert not any("__MACOSX" in str(p) for p in downloaded)
+    assert len(downloaded) == 2
+    assert any("Action_Man-webfont.ttf" in p.name for p in downloaded)
+    assert any("Action_Man_Bold-webfont.ttf" in p.name for p in downloaded)
+    assert all(p.exists() for p in downloaded)
 
     await provider.close()
 
