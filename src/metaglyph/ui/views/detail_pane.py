@@ -438,7 +438,7 @@ class DetailPane(QFrame):
         except asyncio.CancelledError:
             pass
         except Exception as exc:
-            logger.debug(
+            logger.warning(
                 "Failed to fetch variant subset for %s (%d %s): %s",
                 font.family_name,
                 weight_val,
@@ -479,7 +479,8 @@ class DetailPane(QFrame):
         except asyncio.CancelledError:
             pass
         except Exception as exc:
-            logger.debug("Failed to check font installation status: %s", exc)
+            logger.warning("Failed to check font installation status: %s", exc)
+
 
     def _on_size_changed(self, value: int) -> None:
         self._size_val_label.setText(f"{value} pt")
@@ -552,6 +553,7 @@ class DetailPane(QFrame):
         self._feedback_label.setVisible(False)
 
         temp_dir = Path(tempfile.mkdtemp(prefix=f"metaglyph_dl_{font.id}_"))
+        logger.info("Created temporary download directory: %s", temp_dir)
 
         try:
             # 1. Download font files
@@ -624,9 +626,11 @@ class DetailPane(QFrame):
             # Clean up temp download directory
             try:
                 import shutil
+                logger.info("Removing temporary download directory: %s", temp_dir)
                 shutil.rmtree(temp_dir, ignore_errors=True)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Failed to clean up temporary directory %s: %s", temp_dir, exc)
+
 
     async def uninstall_font_async(self, scope: str = "User") -> InstallResult:
         """Uninstall the active font family."""

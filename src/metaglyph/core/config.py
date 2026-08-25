@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import platform
 import sys
 from pathlib import Path
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger("metaglyph.core.config")
 
 
 class Config(BaseModel):
@@ -212,12 +215,16 @@ class Config(BaseModel):
 
     def ensure_directories(self) -> None:
         """Ensure core application runtime directories exist."""
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        self.config_dir.mkdir(parents=True, exist_ok=True)
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.subsets_cache_dir.mkdir(parents=True, exist_ok=True)
-        self.downloads_cache_dir.mkdir(parents=True, exist_ok=True)
-        self.user_fonts_dir.mkdir(parents=True, exist_ok=True)
+        for path in (
+            self.data_dir,
+            self.config_dir,
+            self.cache_dir,
+            self.subsets_cache_dir,
+            self.downloads_cache_dir,
+            self.user_fonts_dir,
+        ):
+            logger.info("Ensuring directory exists: %s", path)
+            path.mkdir(parents=True, exist_ok=True)
 
 
 _global_config: Config | None = None

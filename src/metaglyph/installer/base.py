@@ -43,17 +43,25 @@ FONT_MAGIC_SIGNATURES: set[bytes] = {
 }
 
 
+import logging
+
+logger = logging.getLogger("metaglyph.installer.base")
+
+
 def verify_font_magic_bytes(file_path: Path) -> bool:
     """Verify that a file on disk starts with valid font header magic bytes."""
     if not file_path.is_file():
         return False
 
     try:
+        logger.info("Reading font header magic bytes: %s", file_path)
         with file_path.open("rb") as f:
             header = f.read(4)
             return header in FONT_MAGIC_SIGNATURES
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to read header from %s: %s", file_path, exc)
         return False
+
 
 
 def is_font_file(file_path: Path) -> bool:

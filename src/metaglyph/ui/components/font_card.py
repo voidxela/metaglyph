@@ -158,7 +158,8 @@ class FontCard(QFrame):
         except asyncio.CancelledError:
             pass
         except Exception as exc:
-            logger.debug("Failed to load subset preview for '%s': %s", self.font.family_name, exc)
+            logger.warning("Failed to load subset preview for '%s': %s", self.font.family_name, exc)
+
 
     def set_sample_text(self, text: str) -> None:
         """Update sample text displayed on preview."""

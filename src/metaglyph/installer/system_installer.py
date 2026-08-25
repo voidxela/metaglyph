@@ -147,9 +147,11 @@ class SystemFontInstaller(BaseInstaller):
 
         # Create temporary manifest file
         temp_dir = tempfile.mkdtemp(prefix="metaglyph_manifest_")
+        logger.info("Creating temporary manifest directory: %s", temp_dir)
         manifest_file = Path(temp_dir) / "install_manifest.json"
 
         try:
+            logger.info("Writing elevation manifest to %s", manifest_file)
             with manifest_file.open("w", encoding="utf-8") as f:
                 json.dump(manifest_data, f, indent=2)
 
@@ -195,7 +197,9 @@ class SystemFontInstaller(BaseInstaller):
             return False, {}, [str(exc)]
         finally:
             # Clean up temp manifest
+            logger.info("Removing temporary manifest directory: %s", temp_dir)
             shutil.rmtree(temp_dir, ignore_errors=True)
+
 
     async def install_font(
         self,
@@ -287,6 +291,7 @@ class SystemFontInstaller(BaseInstaller):
                 await self._repository.record_installation(installed_record)
             except Exception as e:
                 logger.error("Failed to record system font installation in DB: %s", e)
+                errors.append(f"Database error: {e}")
 
         # Emit event
         self._event_bus.emit(
@@ -351,6 +356,7 @@ class SystemFontInstaller(BaseInstaller):
                 await self._repository.remove_installation(font_id, scope=InstallScope.SYSTEM)
             except Exception as e:
                 logger.error("Failed to remove system font installation record from DB: %s", e)
+                helper_errors.append(f"Database error: {e}")
 
         # Emit event
         self._event_bus.emit(
@@ -400,6 +406,7 @@ class SystemFontInstaller(BaseInstaller):
         all_uninstalled = {Path(p).resolve() for p in result_data.get("uninstalled_files", [])}
 
         for font_id, family_name, file_paths in fonts_to_uninstall:
+            font_errors = list(helper_errors)
             removed_for_font = [p for p in file_paths if p.resolve() in all_uninstalled or not p.exists()]
             if not removed_for_font and success:
                 removed_for_font = file_paths
@@ -409,6 +416,7 @@ class SystemFontInstaller(BaseInstaller):
                     await self._repository.remove_installation(font_id, scope=InstallScope.SYSTEM)
                 except Exception as e:
                     logger.error("Failed to remove record for %s from DB: %s", font_id, e)
+                    font_errors.append(f"Database error for {font_id}: {e}")
 
             self._event_bus.emit(
                 "font_uninstalled",
@@ -425,10 +433,11 @@ class SystemFontInstaller(BaseInstaller):
                     family_name=family_name,
                     scope=InstallScope.SYSTEM,
                     uninstalled_files=removed_for_font,
-                    errors=helper_errors,
+                    errors=font_errors,
                     message=f"Batch uninstalled {len(removed_for_font)} file(s)" if success else "Failed to uninstall",
                 )
             )
 
         return results
+
 

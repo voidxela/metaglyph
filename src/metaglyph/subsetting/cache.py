@@ -17,6 +17,7 @@ class SubsetCache:
     def __init__(self, cache_dir: Path | None = None, max_entries: int = 1000) -> None:
         self.cache_dir = cache_dir or get_config().subsets_cache_dir
         self.max_entries = max_entries
+        logger.info("Ensuring subset cache directory exists: %s", self.cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def compute_cache_key(
@@ -75,9 +76,10 @@ class SubsetCache:
         path = self.get_path(font_id, sample_text, weight, style)
         if path.exists() and path.stat().st_size > 0:
             try:
+                logger.info("Updating access timestamp on cached subset: %s", path)
                 path.touch()
-            except OSError:
-                pass
+            except OSError as exc:
+                logger.warning("Failed to update access timestamp on %s: %s", path, exc)
             return path
         return None
 
@@ -90,17 +92,29 @@ class SubsetCache:
         style: str = "normal",
     ) -> Path:
         """Save subset font bytes to cache and prune if necessary."""
+        logger.info("Ensuring subset cache directory exists: %s", self.cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         path = self.get_path(font_id, sample_text, weight, style)
         temp_path = path.with_name(f"{path.stem}_{uuid.uuid4().hex[:8]}.tmp")
         try:
+            logger.info("Writing temporary subset file: %s", temp_path)
             temp_path.write_bytes(data)
+            logger.info("Moving temporary subset %s to cache destination %s", temp_path, path)
             temp_path.replace(path)
-        except OSError:
+        except OSError as exc:
             # Fallback to direct write if atomic replace fails
+            logger.warning(
+                "Atomic replace failed for %s (%s), falling back to direct write: %s",
+                temp_path,
+                exc,
+                path,
+            )
+            logger.info("Writing subset font file directly: %s", path)
             path.write_bytes(data)
         finally:
-            temp_path.unlink(missing_ok=True)
+            if temp_path.exists():
+                logger.info("Removing temporary subset file: %s", temp_path)
+                temp_path.unlink(missing_ok=True)
 
         self.prune()
         return path
@@ -125,6 +139,7 @@ class SubsetCache:
         excess = len(files) - limit
         for p in files[:excess]:
             try:
+                logger.info("Pruning expired cached subset: %s", p)
                 p.unlink(missing_ok=True)
                 deleted_count += 1
             except OSError as exc:
@@ -142,11 +157,13 @@ class SubsetCache:
         for p in self.cache_dir.glob("*"):
             if p.is_file():
                 try:
+                    logger.info("Clearing cached subset file: %s", p)
                     p.unlink(missing_ok=True)
                     deleted += 1
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.warning("Failed to delete cached subset file %s: %s", p, exc)
         return deleted
+
 
     def get_stats(self) -> dict[str, int]:
         """Return cache statistics (file count, total bytes)."""

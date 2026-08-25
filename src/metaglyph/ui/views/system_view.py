@@ -207,13 +207,15 @@ class SystemFontItemWidget(QFrame):
         preview_family = self.family_name
         if self.file_path and Path(self.file_path).exists():
             try:
+                logger.info("Loading font file into QFontDatabase for preview: %s", self.file_path)
                 fid = QFontDatabase.addApplicationFont(str(self.file_path))
                 if fid >= 0:
                     fams = QFontDatabase.applicationFontFamilies(fid)
                     if fams:
                         preview_family = fams[0]
             except Exception as e:
-                logger.debug("Failed to load application font %s: %s", self.file_path, e)
+                logger.warning("Failed to load application font %s: %s", self.file_path, e)
+
 
         # Live Font Preview in Details Box
         is_italic = "italic" in self.style_name.lower() or "oblique" in self.style_name.lower()
@@ -1047,6 +1049,8 @@ class SystemView(QWidget):
 
         except Exception as exc:
             logger.error("Failed to refresh system view: %s", exc)
+            self._empty_label.setText(f"Error loading system fonts: {exc}")
+            self._empty_label.setVisible(True)
 
     def _is_item_managed(self, item: object) -> bool:
         """Check if an item is tracked/managed by Metaglyph."""
@@ -1097,7 +1101,9 @@ class SystemView(QWidget):
 
     async def uninstall_single_async(self, item: object) -> None:
         """Asynchronously uninstall a single font item."""
+        family_name = getattr(item, "family_name", "Font")
         try:
+            res = None
             if isinstance(item, InstalledFont):
                 res = await self.uninstaller.uninstall_installed_font(item)
                 if self.repository:
@@ -1115,9 +1121,23 @@ class SystemView(QWidget):
                     await self.repository.delete_system_font_cache_by_paths([item.file_path])
                 self.font_uninstalled.emit(norm_id, item.scope)
 
+            if res is not None and not res.success:
+                err_msg = "; ".join(res.errors) if getattr(res, "errors", None) else getattr(res, "message", "Uninstallation failed")
+                logger.error("Failed to uninstall font %s: %s", family_name, err_msg)
+                QMessageBox.critical(
+                    self,
+                    "Uninstallation Failed",
+                    f"Failed to uninstall font '{family_name}':\n{err_msg}",
+                )
+
             await self.refresh_installed_async()
         except Exception as exc:
-            logger.error("Failed to uninstall font %s: %s", getattr(item, "family_name", ""), exc)
+            logger.error("Failed to uninstall font %s: %s", family_name, exc)
+            QMessageBox.critical(
+                self,
+                "Uninstallation Error",
+                f"An error occurred while uninstalling font '{family_name}':\n{exc}",
+            )
 
     def _on_batch_uninstall_clicked(self) -> None:
         """Handle batch uninstall button click with confirmation modal."""
@@ -1209,13 +1229,30 @@ class SystemView(QWidget):
             if self.repository:
                 await self.repository.delete_system_font_cache_by_paths(all_paths)
             self.batch_uninstall_completed.emit(results)
+
+            failed = [r for r in results if not r.success]
+            if failed:
+                failed_msgs = "\n".join(f"• {r.family_name}: {'; '.join(r.errors) or r.message}" for r in failed)
+                logger.error("Batch uninstallation had %d failures:\n%s", len(failed), failed_msgs)
+                QMessageBox.warning(
+                    self,
+                    "Batch Uninstallation Incomplete",
+                    f"The following fonts could not be uninstalled:\n\n{failed_msgs}",
+                )
+
             await self.refresh_installed_async()
             return results
 
         except Exception as exc:
             logger.error("Failed batch uninstallation: %s", exc)
+            QMessageBox.critical(
+                self,
+                "Batch Uninstallation Error",
+                f"An error occurred during batch uninstallation:\n{exc}",
+            )
             return []
         finally:
             self._is_uninstalling = False
             self._batch_uninstall_btn.setText("🗑️ Batch Uninstall")
             self._update_selection_state()
+

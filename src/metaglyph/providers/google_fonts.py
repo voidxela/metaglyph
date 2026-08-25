@@ -209,8 +209,8 @@ class GoogleFontsProvider(BaseFontProvider):
                                 chosen = name
                                 break
                         raw_bytes = z.read(chosen)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to extract font from Google archive for %s: %s", font.family_name, exc)
 
         if raw_bytes is None:
             # Fetch complete variant via CSS2 without &text=
@@ -241,6 +241,7 @@ class GoogleFontsProvider(BaseFontProvider):
         target_dir: Path,
     ) -> list[Path]:
         """Download complete Google Fonts family and extract TTF/OTF files."""
+        logger.info("Ensuring target directory exists: %s", target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
         client = await self.get_client()
         saved_files: list[Path] = []
@@ -256,13 +257,14 @@ class GoogleFontsProvider(BaseFontProvider):
                         filename = Path(item.filename).name
                         if filename.lower().endswith((".ttf", ".otf")) and not filename.startswith("."):
                             target_file = target_dir / filename
+                            logger.info("Writing extracted Google Font file: %s", target_file)
                             target_file.write_bytes(z.read(item.filename))
                             saved_files.append(target_file)
                 if saved_files:
                     logger.info("Extracted %d font files from archive for %s", len(saved_files), font.family_name)
                     return saved_files
         except Exception as exc:
-            logger.debug("Archive download not available or failed for %s: %s", font.family_name, exc)
+            logger.warning("Archive download not available or failed for %s: %s", font.family_name, exc)
 
         # 2. Download TTF font files directly via Google Fonts CSS2 API
         family_param = font.family_name.replace(" ", "+")
@@ -279,7 +281,8 @@ class GoogleFontsProvider(BaseFontProvider):
                 if resp.status_code == 200 and "src:" in resp.text:
                     css_content = resp.text
                     break
-            except Exception:
+            except Exception as exc:
+                logger.warning("Failed CSS2 query %s: %s", css_url, exc)
                 continue
 
         if not css_content:
@@ -311,6 +314,7 @@ class GoogleFontsProvider(BaseFontProvider):
                 async with semaphore:
                     r = await client.get(u)
                     r.raise_for_status()
+                    logger.info("Writing downloaded Google Font variant: %s", dest)
                     dest.write_bytes(r.content)
                     return dest
             except Exception as exc:
@@ -323,3 +327,4 @@ class GoogleFontsProvider(BaseFontProvider):
 
         logger.info("Extracted %d font files for %s to %s", len(saved_files), font.family_name, target_dir)
         return saved_files
+

@@ -49,6 +49,7 @@ def _guess_family_and_style(stem: str) -> tuple[str, str, str | None]:
 def extract_font_names(file_path: Path) -> tuple[str, str, str | None]:
     """Extract family name, style/variant name, and postscript name from a font file."""
     try:
+        logger.info("Reading font names from file: %s", file_path)
         with TTFont(str(file_path), fontNumber=0, lazy=True) as tt:
             name_table = tt.get("name")
             if not name_table:
@@ -63,7 +64,8 @@ def extract_font_names(file_path: Path) -> tuple[str, str, str | None]:
             for record in name_table.names:
                 try:
                     text = record.toUnicode().strip()
-                except Exception:
+                except Exception as exc:
+                    logger.debug("Failed to decode name record in %s: %s", file_path, exc)
                     continue
 
                 if not text:
@@ -97,7 +99,8 @@ def extract_font_names(file_path: Path) -> tuple[str, str, str | None]:
                 final_style = "Regular"
 
             return final_family, final_style, postscript_name
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to parse font names from %s: %s. Using filename heuristic.", file_path, exc)
         return _guess_family_and_style(file_path.stem)
 
 
@@ -143,6 +146,7 @@ class FontDetector:
             if not base_dir.exists():
                 continue
 
+            logger.info("Scanning directory for fonts: %s", base_dir)
             try:
                 walk_iter = os.walk(base_dir)
             except Exception as e:
@@ -179,6 +183,7 @@ class FontDetector:
                         logger.warning("Error processing font file %s/%s: %s", root, file_name, e)
 
         return list(discovered.values())
+
 
     async def scan_system_fonts(
         self, search_paths: list[Path] | None = None

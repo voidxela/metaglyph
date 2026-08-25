@@ -582,8 +582,9 @@ class FontRepository:
                     try:
                         paths = json.loads(row["file_paths"])
                         managed_paths.update(paths)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.warning("Failed to parse installed file paths JSON '%s': %s", row["file_paths"], exc)
+
 
             for entry in entries:
                 is_managed = 1 if (entry.file_path in managed_paths or entry.is_metaglyph_managed) else 0

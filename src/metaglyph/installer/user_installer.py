@@ -97,6 +97,7 @@ class UserFontInstaller(BaseInstaller):
             )
 
         target_dir = self.target_dir
+        logger.info("Ensuring user fonts directory exists: %s", target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
 
         installed_paths: list[Path] = []
@@ -119,19 +120,22 @@ class UserFontInstaller(BaseInstaller):
                 temp_dest = target_dir / f".metaglyph_tmp_{os.getpid()}_{src.name}"
 
                 try:
+                    logger.info("Copying font file from %s to %s", src, temp_dest)
                     shutil.copy2(src, temp_dest)
                     # Set standard file permissions (0644 on Unix)
                     if hasattr(os, "chmod"):
                         os.chmod(temp_dest, 0o644)
+                    logger.info("Moving temporary file from %s to %s", temp_dest, dest)
                     temp_dest.replace(dest)
                     copied.append(dest)
                 except Exception as e:
                     errs.append(f"Failed to copy {src.name}: {e}")
                     if temp_dest.exists():
                         try:
+                            logger.info("Removing temporary file: %s", temp_dest)
                             temp_dest.unlink()
-                        except Exception:
-                            pass
+                        except Exception as ue:
+                            logger.warning("Failed to remove temporary file %s: %s", temp_dest, ue)
 
             return copied, errs
 
@@ -165,6 +169,7 @@ class UserFontInstaller(BaseInstaller):
                 await self._repository.record_installation(installed_record)
             except Exception as e:
                 logger.error("Failed to record font installation in DB: %s", e)
+                errors.append(f"Database error: {e}")
 
         # Emit event
         self._event_bus.emit(
@@ -206,10 +211,12 @@ class UserFontInstaller(BaseInstaller):
             for path in file_paths:
                 try:
                     if path.exists():
+                        logger.info("Deleting user font file: %s", path)
                         path.unlink()
                         removed.append(path)
                     else:
                         # File might already be gone
+                        logger.info("User font file already deleted or not found: %s", path)
                         removed.append(path)
                 except Exception as e:
                     errs.append(f"Failed to delete {path}: {e}")
@@ -227,6 +234,7 @@ class UserFontInstaller(BaseInstaller):
                 await self._repository.remove_installation(font_id, scope=InstallScope.USER)
             except Exception as e:
                 logger.error("Failed to remove font installation record from DB: %s", e)
+                errors.append(f"Database error: {e}")
 
         # Emit event
         self._event_bus.emit(
@@ -246,3 +254,4 @@ class UserFontInstaller(BaseInstaller):
             errors=errors,
             message=f"Uninstalled {len(uninstalled_paths)} file(s) for {family_name}",
         )
+

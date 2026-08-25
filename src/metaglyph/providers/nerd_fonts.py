@@ -270,15 +270,18 @@ class NerdFontsProvider(BaseFontProvider):
 
         with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) as tmp:
             tmp_path = Path(tmp.name)
+        logger.info("Created temporary file for Nerd Font download: %s", tmp_path)
 
         try:
             async with client.stream("GET", dl_url) as resp:
                 resp.raise_for_status()
+                logger.info("Writing downloaded stream to temporary file: %s", tmp_path)
                 with tmp_path.open("wb") as f:
                     async for chunk in resp.aiter_bytes(chunk_size=65536):
                         f.write(chunk)
 
             font_bytes: bytes | None = None
+            logger.info("Reading header from temporary file: %s", tmp_path)
             with tmp_path.open("rb") as f:
                 magic = f.read(4)
 
@@ -301,8 +304,10 @@ class NerdFontsProvider(BaseFontProvider):
 
                     font_bytes = z.read(chosen)
             else:
+                logger.info("Reading font bytes from %s", tmp_path)
                 font_bytes = tmp_path.read_bytes()
         finally:
+            logger.info("Removing temporary download file: %s", tmp_path)
             tmp_path.unlink(missing_ok=True)
 
         subsetted = await asyncio.to_thread(subset_font_bytes, font_bytes, sample_text)
@@ -327,6 +332,7 @@ class NerdFontsProvider(BaseFontProvider):
             target_dir: Destination folder.
             variant_filter: Optional filter ('Standard', 'Mono', 'Propo').
         """
+        logger.info("Ensuring target directory exists: %s", target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
         client = await self.get_client()
         dl_url = resolve_nerd_font_download_url(font)
@@ -335,15 +341,18 @@ class NerdFontsProvider(BaseFontProvider):
 
         with tempfile.NamedTemporaryFile(suffix=".tmp", delete=False) as tmp:
             tmp_path = Path(tmp.name)
+        logger.info("Created temporary archive file: %s", tmp_path)
 
         saved_files: list[Path] = []
         try:
             async with client.stream("GET", dl_url) as resp:
                 resp.raise_for_status()
+                logger.info("Writing downloaded zip stream to %s", tmp_path)
                 with tmp_path.open("wb") as f:
                     async for chunk in resp.aiter_bytes(chunk_size=65536):
                         f.write(chunk)
 
+            logger.info("Reading header from temporary file: %s", tmp_path)
             with tmp_path.open("rb") as f:
                 magic = f.read(4)
 
@@ -359,15 +368,19 @@ class NerdFontsProvider(BaseFontProvider):
                             continue
 
                         target_file = target_dir / filename
+                        logger.info("Writing extracted Nerd Font file: %s", target_file)
                         target_file.write_bytes(z.read(item.filename))
                         saved_files.append(target_file)
             else:
                 # Single font file response
                 target_file = target_dir / f"{font.id}.ttf"
+                logger.info("Copying font file from %s to %s", tmp_path, target_file)
                 shutil.copyfile(tmp_path, target_file)
                 saved_files.append(target_file)
         finally:
+            logger.info("Removing temporary download file: %s", tmp_path)
             tmp_path.unlink(missing_ok=True)
 
         logger.info("Extracted %d Nerd Font files for %s to %s", len(saved_files), font.family_name, target_dir)
         return saved_files
+

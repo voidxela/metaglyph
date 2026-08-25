@@ -315,6 +315,8 @@ class DiscoverView(QWidget):
                 card.set_font_count(cnt)
         except Exception as exc:
             logger.error("Failed to load curated category counts: %s", exc)
+            self._empty_notice.setVisible(True)
+
 
     def trigger_async_refresh(self) -> None:
         """Schedule background stats refresh."""

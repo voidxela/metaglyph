@@ -173,6 +173,7 @@ class FontsourceProvider(BaseFontProvider):
         target_dir: Path,
     ) -> list[Path]:
         """Download all font files (TTF) for the Fontsource family."""
+        logger.info("Ensuring target directory exists: %s", target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
         client = await self.get_client()
 
@@ -199,11 +200,13 @@ class FontsourceProvider(BaseFontProvider):
                 async with semaphore:
                     res = await client.get(v.download_url)
                     res.raise_for_status()
+                    logger.info("Writing downloaded font file: %s", dest_path)
                     dest_path.write_bytes(res.content)
                     return dest_path
             except Exception as exc:
                 logger.warning("Failed to download variant %s: %s", v.download_url, exc)
                 return None
+
 
         tasks = [_download_one(v) for v in variants_to_download]
         results = await asyncio.gather(*tasks)

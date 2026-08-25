@@ -236,7 +236,12 @@ class SearchView(QWidget):
             pass
         except Exception as exc:
             logger.error("Search query failed: %s", exc)
-            self._results_count_label.setText("Error querying catalog")
+            self._results_count_label.setText(f"Error querying catalog: {exc}")
+            self._empty_title.setText("Search Error")
+            self._empty_desc.setText(f"Failed to query font catalog: {exc}")
+            self._empty_widget.setVisible(True)
+            self._load_more_btn.setVisible(False)
+
 
     def _clear_cards(self) -> None:
         """Remove all existing font card widgets from layout."""

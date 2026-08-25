@@ -80,11 +80,15 @@ def subset_font_file(source_path: Path, output_path: Path, text: str) -> Path:
     Returns:
         The output_path Path object.
     """
+    logger.info("Ensuring subset output directory exists: %s", output_path.parent)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    logger.info("Reading font file for subsetting: %s", source_path)
     raw_bytes = source_path.read_bytes()
     subset_bytes = subset_font_bytes(raw_bytes, text)
+    logger.info("Writing subset font file: %s", output_path)
     output_path.write_bytes(subset_bytes)
     return output_path
+
 
 
 async def async_subset_font_file(source_path: Path, output_path: Path, text: str) -> Path:

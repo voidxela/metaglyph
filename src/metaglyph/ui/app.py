@@ -112,12 +112,12 @@ class MetaglyphApp:
         try:
             await self.provider_manager.close()
         except Exception as exc:
-            logger.debug("Error closing provider manager: %s", exc)
+            logger.warning("Error closing provider manager: %s", exc)
 
         try:
             await self.db_manager.close()
         except Exception as exc:
-            logger.debug("Error closing database manager: %s", exc)
+            logger.warning("Error closing database manager: %s", exc)
 
         if self.qapp is not None:
             self.qapp.quit()
@@ -138,4 +138,11 @@ def run_app() -> int:
         return 0
     except Exception as exc:
         logger.error("Application error: %s", exc, exc_info=True)
+        try:
+            from PySide6.QtWidgets import QMessageBox
+
+            QMessageBox.critical(None, "Application Error", f"Metaglyph encountered an unexpected error:\n{exc}")
+        except Exception:
+            pass
         return 1
+

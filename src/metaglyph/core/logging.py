@@ -20,10 +20,11 @@ def setup_logging(
     level: int = logging.INFO,
     log_to_file: bool = True,
     stream: TextIO | None = None,
+    force: bool = False,
 ) -> None:
     """Configure application logging handlers."""
     global _is_configured
-    if _is_configured:
+    if _is_configured and not force:
         return
 
     root_logger = logging.getLogger("metaglyph")
@@ -42,8 +43,10 @@ def setup_logging(
     if log_to_file:
         try:
             config = get_config()
+            root_logger.info("Ensuring log cache directory exists: %s", config.cache_dir)
             config.cache_dir.mkdir(parents=True, exist_ok=True)
             log_file = config.cache_dir / "metaglyph.log"
+            root_logger.info("Configuring application file log: %s", log_file)
             file_handler = logging.handlers.RotatingFileHandler(
                 log_file, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
             )
@@ -62,3 +65,4 @@ def get_logger(name: str) -> logging.Logger:
     if not name.startswith("metaglyph"):
         name = f"metaglyph.{name}"
     return logging.getLogger(name)
+

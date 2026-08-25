@@ -115,13 +115,16 @@ class DatabaseManager:
     async def initialize(self) -> None:
         """Ensure parent directories exist, open database, and apply schema."""
         if isinstance(self._db_path, Path):
+            logger.info("Ensuring database parent directory exists: %s", self._db_path.parent)
             self._db_path.parent.mkdir(parents=True, exist_ok=True)
 
         if self._is_memory and self._memory_hold_conn is None:
             # Hold a persistent connection to keep shared in-memory database alive
+            logger.info("Opening persistent shared in-memory database: %s", self._conn_str)
             self._memory_hold_conn = await aiosqlite.connect(self._conn_str, uri=self._uri)
             await self._memory_hold_conn.execute("PRAGMA foreign_keys = ON;")
 
+        logger.info("Initializing database schema at %s", self._db_path)
         async with self.connection() as conn:
             # Enable Foreign Keys
             await conn.execute("PRAGMA foreign_keys = ON;")
@@ -134,23 +137,26 @@ class DatabaseManager:
             # Migration: ensure style_name exists in system_font_cache
             try:
                 await conn.execute("ALTER TABLE system_font_cache ADD COLUMN style_name TEXT DEFAULT 'Regular';")
-            except Exception:
-                pass
+            except Exception as exc:
+                if "duplicate column" not in str(exc).lower():
+                    logger.warning("Database migration notice for system_font_cache: %s", exc)
 
             await conn.commit()
 
         self._is_initialized = True
-        logger.debug("Database initialized at %s", self._db_path)
+        logger.info("Database initialized successfully at %s", self._db_path)
 
     async def close(self) -> None:
         """Close any held in-memory database connection."""
         if self._memory_hold_conn is not None:
+            logger.info("Closing held database connection: %s", self._conn_str)
             await self._memory_hold_conn.close()
             self._memory_hold_conn = None
 
     @contextlib.asynccontextmanager
     async def connection(self) -> AsyncIterator[aiosqlite.Connection]:
         """Async context manager yielding an aiosqlite database connection."""
+        logger.info("Opening database connection: %s", self._conn_str)
         conn = await aiosqlite.connect(self._conn_str, uri=self._uri)
         conn.row_factory = aiosqlite.Row
         await conn.execute("PRAGMA foreign_keys = ON;")
@@ -158,3 +164,4 @@ class DatabaseManager:
             yield conn
         finally:
             await conn.close()
+

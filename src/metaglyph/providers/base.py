@@ -33,6 +33,7 @@ class BaseFontProvider(ABC):
         self.timeout = timeout
         self.cache_dir = cache_dir or get_config().cache_dir
         self.downloads_dir = get_config().downloads_cache_dir
+        logger.info("Ensuring downloads cache directory exists: %s", self.downloads_dir)
         self.downloads_dir.mkdir(parents=True, exist_ok=True)
 
     async def get_client(self) -> httpx.AsyncClient:
@@ -97,6 +98,7 @@ class BaseFontProvider(ABC):
 
         Default implementation streams the variant's download_url.
         """
+        logger.info("Ensuring download target directory exists: %s", target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
         filename = f"{font.id}-{variant.weight}-{variant.style}.{variant.file_format}"
         dest_path = target_dir / filename
@@ -104,8 +106,10 @@ class BaseFontProvider(ABC):
         client = await self.get_client()
         response = await client.get(variant.download_url)
         response.raise_for_status()
+        logger.info("Writing downloaded font variant to %s", dest_path)
         dest_path.write_bytes(response.content)
         return dest_path
+
 
     async def close(self) -> None:
         """Close HTTP client session."""

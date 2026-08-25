@@ -9,11 +9,13 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QMessageBox,
     QProgressBar,
     QStackedWidget,
     QStatusBar,
     QWidget,
 )
+
 
 from metaglyph.core.events import get_event_bus
 from metaglyph.db.models import Font
@@ -307,9 +309,11 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             logger.error("Catalog sync failed: %s", exc)
             self._status_msg_label.setText(f"Status: Sync error ({exc})")
+            QMessageBox.warning(self, "Sync Failed", f"Catalog synchronization encountered an error:\n{exc}")
         finally:
             self._status_progress.setVisible(False)
             self.sidebar.set_syncing(False)
+
 
     async def refresh_stats_async(self) -> None:
         """Update metrics across sidebar and status bar."""
