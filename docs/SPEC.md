@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-**Metaglyph** is a desktop font browser and installer built with Python and PySide6. It unifies multiple font providers (Google Fonts, Fontsource, Nerd Fonts) into a single interface, featuring native async font subsetting for lightweight live previews, local metadata deduplication, and a secure Rust-based helper binary for handling OS-level system font installations.
+**Metaglyph** is a desktop font browser and installer built with Python and PySide6. It unifies multiple font providers (Fontsource, Font Squirrel, Nerd Fonts) into a single interface, featuring native async font subsetting for lightweight live previews, local metadata deduplication, and a secure Rust-based helper binary for handling OS-level system font installations.
 
 ## 2. Core Technologies
 
@@ -51,7 +51,7 @@ A visual dashboard using `QScrollArea` and grid layouts to present curated font 
 
 ### B. Search & Browse Page
 
-* **Filters:** Toggles for Providers (Google Fonts, Fontsource, Nerd Fonts) and structural Categories (Serif, Sans-Serif, Monospace, Variable).
+* **Filters:** Toggles for Providers (Fontsource, Font Squirrel, Nerd Fonts) and structural Categories (Serif, Sans-Serif, Monospace, Variable).
 * **Results List:** Displays the natively rendered subsetted fonts based on the static sample text.
 * **Detail Pane:** Clicking a font loads the full `.ttf`/`.otf` file into the temporary cache, allowing manipulation of `QFont.setPointSizeF()` and `QFont.setWeight()`.
 

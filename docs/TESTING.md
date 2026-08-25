@@ -46,7 +46,7 @@ The standard test suite is located in the `tests/` directory and covers all back
 |---|---|
 | [`tests/test_normalizer.py`](file:///home/alex/Develop/metaglyph/tests/test_normalizer.py) | Slug generation, Nerd Font counterpart extraction, curated category heuristics, provider priority matrix. |
 | [`tests/test_db_repository.py`](file:///home/alex/Develop/metaglyph/tests/test_db_repository.py) | SQLite schema migrations, asynchronous repository queries, deduplication, full-text search, installation tracking. |
-| [`tests/test_providers.py`](file:///home/alex/Develop/metaglyph/tests/test_providers.py) | Google Fonts, Fontsource, and Nerd Fonts API parsers, download mechanisms, and provider manager routing. |
+| [`tests/test_providers.py`](file:///home/alex/Develop/metaglyph/tests/test_providers.py) | Font Squirrel, Fontsource, and Nerd Fonts API parsers, download mechanisms, and provider manager routing. |
 | [`tests/test_subsetting.py`](file:///home/alex/Develop/metaglyph/tests/test_subsetting.py) | Dynamic `fontTools` glyph subsetting, font cache management, LRU eviction, and `QFontDatabase` application loading. |
 | [`tests/test_ui_components.py`](file:///home/alex/Develop/metaglyph/tests/test_ui_components.py) | PySide6 widget units (`SearchBar`, `FilterBar`, `FontCard`, `FontPreviewWidget`, `SidebarWidget`, `ThemeManager`). |
 | [`tests/test_detail_pane.py`](file:///home/alex/Develop/metaglyph/tests/test_detail_pane.py) | Font inspector drawer, weight/size sliders, Nerd Font variant picker, install/uninstall actions. |
@@ -189,7 +189,7 @@ The `UIDriver` instance (`harness.driver`) provides the following methods:
 * `await driver.search(query, debounce_wait=True)`: Enter a search query.
 * `await driver.clear_search()`: Clear the active search text.
 * `await driver.reset_search_filters()`: Reset all category and provider chips to "All".
-* `await driver.toggle_provider_filter("google" | "fontsource" | "nerd_fonts", active=True)`: Toggle provider.
+* `await driver.toggle_provider_filter("fontsquirrel" | "fontsource" | "nerd_fonts", active=True)`: Toggle provider.
 * `await driver.toggle_category_filter("sans-serif" | "serif" | "monospace" | "display" | "handwriting", active=True)`: Toggle structural category.
 * `await driver.toggle_variable_filter(active=True)`: Toggle variable fonts only checkbox.
 * `await driver.toggle_nerd_filter(active=True)`: Toggle Nerd Fonts only checkbox.

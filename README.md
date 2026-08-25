@@ -10,7 +10,7 @@
 
 ## 1. Overview
 
-**Metaglyph** unifies multiple online font providers (Google Fonts, Fontsource, Nerd Fonts) into a single, unified, high-performance desktop application. Key capabilities include:
+**Metaglyph** unifies multiple online font providers (Fontsource, Font Squirrel, Nerd Fonts) into a single, unified, high-performance desktop application. Key capabilities include:
 
 - **Unified Font Catalog:** Multi-source deduplication across providers with deterministic priority resolution and automatic metadata merging.
 - **Native Async Micro-Subsetting:** Zero-lag live font previews rendered with native Qt widgets (`QLabel`) via dynamic TrueType micro-subset extraction and runtime `QFontDatabase` loading.
@@ -94,7 +94,7 @@ metaglyph
 
 ### B. Headless Catalog Synchronization (CLI)
 
-Synchronize font catalogs across Google Fonts, Fontsource, and Nerd Fonts without launching the GUI:
+Synchronize font catalogs across Fontsource, Font Squirrel, and Nerd Fonts without launching the GUI:
 
 ```bash
 python -m metaglyph --sync
