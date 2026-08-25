@@ -68,12 +68,14 @@ class FilterBar(QWidget):
         scroll = QScrollArea(self)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet("background-color: transparent;")
 
         container = QWidget(scroll)
         container.setStyleSheet("background-color: transparent;")
+        container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        container.setMinimumWidth(1000)
         main_layout = QVBoxLayout(container)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(6)
@@ -84,7 +86,7 @@ class FilterBar(QWidget):
         row1_layout.setSpacing(6)
 
         cat_label = QLabel("Category:", container)
-        cat_label.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 700; min-width: 56px;")
+        cat_label.setStyleSheet("color: #78869a; font-size: 11px; font-weight: 700; min-width: 56px;")
         row1_layout.addWidget(cat_label)
 
         self._category_group = QButtonGroup(self)
@@ -112,7 +114,7 @@ class FilterBar(QWidget):
         row2_layout.setSpacing(6)
 
         prov_label = QLabel("Provider:", container)
-        prov_label.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 700; min-width: 56px;")
+        prov_label.setStyleSheet("color: #78869a; font-size: 11px; font-weight: 700; min-width: 56px;")
         row2_layout.addWidget(prov_label)
 
         self._provider_group = QButtonGroup(self)

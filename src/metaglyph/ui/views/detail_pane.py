@@ -177,6 +177,7 @@ class DetailPane(QFrame):
         sep1.setFrameShape(QFrame.Shape.HLine)
         sep1.setStyleSheet("color: #262632;")
         main_layout.addWidget(sep1)
+        main_layout.addSpacing(4)
 
         # 3. Size Slider Section
         size_header_layout = QHBoxLayout()
@@ -195,6 +196,7 @@ class DetailPane(QFrame):
         self._size_slider.setValue(24)
         self._size_slider.valueChanged.connect(self._on_size_changed)
         main_layout.addWidget(self._size_slider)
+        main_layout.addSpacing(6)
 
         # 4. Weight & Style Controls
         style_controls_layout = QHBoxLayout()
@@ -228,6 +230,7 @@ class DetailPane(QFrame):
         style_controls_layout.addLayout(italic_box, stretch=1)
 
         main_layout.addLayout(style_controls_layout)
+        main_layout.addSpacing(6)
 
         # 5. Interactive Sample Text & Presets
         sample_header_layout = QHBoxLayout()
@@ -250,6 +253,7 @@ class DetailPane(QFrame):
         self._sample_editor.setPlainText(get_config().default_sample_text)
         self._sample_editor.textChanged.connect(self._on_sample_text_changed)
         main_layout.addWidget(self._sample_editor)
+        main_layout.addSpacing(6)
 
         # 6. Live Preview Box
         preview_header = QLabel("Live Rendering", container)
@@ -263,6 +267,7 @@ class DetailPane(QFrame):
             parent=container,
         )
         main_layout.addWidget(self._preview)
+        main_layout.addSpacing(4)
 
         # 7. Installation State Banner
         self._install_status_label = QLabel("", container)
@@ -293,6 +298,7 @@ class DetailPane(QFrame):
         self._radio_system.setCursor(Qt.CursorShape.PointingHandCursor)
         scope_group.addButton(self._radio_system)
         main_layout.addWidget(self._radio_system)
+        main_layout.addSpacing(8)
 
         # 9. Action Buttons Row (Install & Uninstall)
         self._actions_layout = QVBoxLayout()

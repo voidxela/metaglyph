@@ -67,7 +67,7 @@ QFrame {
 
 #sidebarSubtitle {
     font-size: 11px;
-    color: #64748b;
+    color: #78869a;
     font-weight: 500;
 }
 
@@ -78,7 +78,7 @@ QFrame {
 
 QPushButton.nav-btn {
     text-align: left;
-    padding: 9px 12px;
+    padding: 10px 14px;
     border-radius: 6px;
     font-size: 13px;
     font-weight: 600;
@@ -106,7 +106,7 @@ QPushButton.nav-btn:checked {
 
 #sidebarStatsLabel {
     font-size: 11px;
-    color: #64748b;
+    color: #94a3b8;
     line-height: 1.4;
 }
 
@@ -217,7 +217,7 @@ QPushButton.danger-btn:hover {
 /* Filter Bar & Chips */
 #filterBar {
     background-color: transparent;
-    padding: 2px 0px;
+    padding: 6px 0px;
 }
 
 QPushButton.filter-chip {
@@ -273,7 +273,7 @@ QCheckBox.filter-toggle::indicator:checked {
     background-color: #161922;
     border: 1px solid #232838;
     border-radius: 8px;
-    padding: 12px 14px;
+    padding: 14px 16px;
     margin: 2px 0px;
 }
 
@@ -283,8 +283,8 @@ QCheckBox.filter-toggle::indicator:checked {
 }
 
 #fontCard.selected {
-    border: 1.5px solid #6366f1;
-    background-color: #1c2132;
+    border: 2px solid #6366f1;
+    background-color: #1a2035;
 }
 
 #fontCardHeader {
@@ -367,15 +367,15 @@ QCheckBox.filter-toggle::indicator:checked {
 
 /* Discover View Category Cards */
 #categoryCard {
-    background-color: #161922;
+    background-color: #171b25;
     border: 1px solid #232838;
     border-radius: 10px;
     padding: 16px;
 }
 
 #categoryCard:hover {
-    background-color: #1c202e;
-    border-color: #6366f1;
+    background-color: #1e2332;
+    border-color: #818cf8;
 }
 
 #categoryCardTitle {
@@ -411,6 +411,7 @@ QCheckBox.filter-toggle::indicator:checked {
 #spotlightCard {
     background-color: #151828;
     border: 1px solid #2e3656;
+    border-left: 3px solid #6366f1;
     border-radius: 10px;
     padding: 18px 22px;
 }
@@ -445,10 +446,11 @@ QCheckBox.filter-toggle::indicator:checked {
 }
 
 #detailPaneTitle {
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 800;
     color: #ffffff;
     background-color: transparent;
+    margin-bottom: 2px;
 }
 
 #detailPaneSubtitle {
@@ -462,8 +464,9 @@ QCheckBox.filter-toggle::indicator:checked {
     font-weight: 700;
     color: #94a3b8;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-top: 6px;
+    letter-spacing: 0.8px;
+    margin-top: 12px;
+    margin-bottom: 4px;
     background-color: transparent;
 }
 
@@ -699,7 +702,7 @@ QToolTip {
     background-color: #131620;
     border: 1px solid #232838;
     border-radius: 8px;
-    padding: 6px 10px;
+    padding: 8px 14px;
 }
 
 #batchSelectedLabel {

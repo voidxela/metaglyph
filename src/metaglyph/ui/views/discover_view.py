@@ -160,7 +160,7 @@ class CategoryCardWidget(QFrame):
         examples_layout.setSpacing(5)
 
         ex_prefix = QLabel("Examples:", self)
-        ex_prefix.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 600;")
+        ex_prefix.setStyleSheet("color: #78869a; font-size: 11px; font-weight: 600;")
         examples_layout.addWidget(ex_prefix)
 
         for ex in examples:
@@ -221,7 +221,7 @@ class DiscoverView(QWidget):
         container.setObjectName("discoverContainer")
         content_layout = QVBoxLayout(container)
         content_layout.setContentsMargins(24, 20, 24, 24)
-        content_layout.setSpacing(20)
+        content_layout.setSpacing(24)
 
         # Banner / Spotlight Card
         spotlight = QFrame(container)
@@ -270,7 +270,7 @@ class DiscoverView(QWidget):
         # 2-Column Responsive Category Grid
         grid_layout = QGridLayout()
         grid_layout.setContentsMargins(0, 0, 0, 0)
-        grid_layout.setSpacing(12)
+        grid_layout.setSpacing(16)
 
         for idx, item in enumerate(CURATED_CATEGORY_METADATA):
             card = CategoryCardWidget(
