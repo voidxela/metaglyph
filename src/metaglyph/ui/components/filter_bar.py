@@ -87,7 +87,7 @@ class FilterBar(QWidget):
         row1_layout.setSpacing(6)
 
         cat_label = QLabel("Category:", container)
-        cat_label.setStyleSheet("color: #78869a; font-size: 11px; font-weight: 700; min-width: 56px;")
+        cat_label.setStyleSheet("color: #a997be; font-size: 11px; font-weight: 700; min-width: 56px;")
         row1_layout.addWidget(cat_label)
 
         self._category_group = QButtonGroup(self)
@@ -115,7 +115,7 @@ class FilterBar(QWidget):
         row2_layout.setSpacing(6)
 
         prov_label = QLabel("Provider:", container)
-        prov_label.setStyleSheet("color: #78869a; font-size: 11px; font-weight: 700; min-width: 56px;")
+        prov_label.setStyleSheet("color: #a997be; font-size: 11px; font-weight: 700; min-width: 56px;")
         row2_layout.addWidget(prov_label)
 
         self._provider_group = QButtonGroup(self)
@@ -139,7 +139,7 @@ class FilterBar(QWidget):
         # Subtle divider between providers and feature toggles
         sep = QFrame(container)
         sep.setFrameShape(QFrame.Shape.VLine)
-        sep.setStyleSheet("color: #282e3f; max-height: 16px;")
+        sep.setStyleSheet("color: #371666; max-height: 16px;")
         row2_layout.addWidget(sep)
 
         row2_layout.addSpacing(4)
@@ -163,8 +163,8 @@ class FilterBar(QWidget):
         self._reset_btn = QPushButton("Reset Filters", container)
         self._reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._reset_btn.setStyleSheet(
-            "QPushButton { padding: 3px 10px; font-size: 11px; color: #64748b; background-color: transparent; border: 1px solid #282e3f; border-radius: 4px; } "
-            "QPushButton:hover { color: #f1f5f9; background-color: #1f2433; border-color: #384259; }"
+            "QPushButton { padding: 3px 10px; font-size: 11px; color: #8a769f; background-color: transparent; border: 1px solid #371666; border-radius: 4px; } "
+            "QPushButton:hover { color: #ffffff; background-color: #240d47; border-color: #5c24a3; }"
         )
         self._reset_btn.clicked.connect(self.reset_filters)
         row2_layout.addWidget(self._reset_btn)

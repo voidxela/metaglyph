@@ -139,11 +139,11 @@ class CategoryCardWidget(QFrame):
 
         icon_label = QLabel(self)
         icon_label.setObjectName("categoryCardIcon")
-        icon_label.setPixmap(render_svg_pixmap(icon, color="#818cf8", size=16))
+        icon_label.setPixmap(render_svg_pixmap(icon, color="#e879f9", size=16))
         icon_label.setFixedSize(26, 26)
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_label.setStyleSheet(
-            "background-color: #1f2436; border-radius: 6px; border: 1px solid #2d344d;"
+            "background-color: #280e4d; border-radius: 6px; border: 1px solid #471987;"
         )
         header_layout.addWidget(icon_label)
 
@@ -171,13 +171,13 @@ class CategoryCardWidget(QFrame):
         examples_layout.setSpacing(5)
 
         ex_prefix = QLabel("Examples:", self)
-        ex_prefix.setStyleSheet("color: #78869a; font-size: 11px; font-weight: 600;")
+        ex_prefix.setStyleSheet("color: #a997be; font-size: 11px; font-weight: 600;")
         examples_layout.addWidget(ex_prefix)
 
         for ex in examples:
             tag = QLabel(ex, self)
             tag.setStyleSheet(
-                "background-color: #1c202d; color: #cbd5e1; font-size: 10px; padding: 2px 6px; border-radius: 4px; border: 1px solid #282e3f;"
+                "background-color: #1f0b3b; color: #c4b5d4; font-size: 10px; padding: 2px 6px; border-radius: 4px; border: 1px solid #371666;"
             )
             examples_layout.addWidget(tag)
 
@@ -193,14 +193,13 @@ class CategoryCardWidget(QFrame):
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self.category)
-        super().mousePressEvent(event)
 
 
 class DiscoverView(QWidget):
-    """Discover view containing curated category dashboard and featured collections."""
+    """Visual curated font categories dashboard and spotlight recommendations."""
 
-    category_selected = Signal(str)  # Curated category name
-    font_selected = Signal(object)  # Font model
+    category_selected = Signal(str)  # category name string (e.g. "Code", "Interface")
+    font_selected = Signal(object)    # Font model
     sync_requested = Signal()
 
     def __init__(
@@ -217,6 +216,7 @@ class DiscoverView(QWidget):
         self._category_cards: dict[str, CategoryCardWidget] = {}
 
         self._init_ui()
+        self._refresh_counts_task: asyncio.Task | None = None
 
     def _init_ui(self) -> None:
         root_layout = QVBoxLayout(self)
@@ -231,29 +231,29 @@ class DiscoverView(QWidget):
         container = QWidget(scroll)
         container.setObjectName("discoverContainer")
         content_layout = QVBoxLayout(container)
-        content_layout.setContentsMargins(24, 20, 24, 24)
+        content_layout.setContentsMargins(32, 28, 32, 32)
         content_layout.setSpacing(24)
 
-        # Banner / Spotlight Card
+        # 1. Spotlight Hero Card
         spotlight = QFrame(container)
         spotlight.setObjectName("spotlightCard")
         spotlight_layout = QVBoxLayout(spotlight)
         spotlight_layout.setContentsMargins(20, 18, 20, 18)
         spotlight_layout.setSpacing(8)
 
-        spotlight_title = QLabel("Explore Beautiful Typography", spotlight)
-        spotlight_title.setObjectName("spotlightTitle")
-        spotlight_layout.addWidget(spotlight_title)
+        spot_title = QLabel("✦ Discover Curated Typefaces", spotlight)
+        spot_title.setObjectName("spotlightTitle")
+        spotlight_layout.addWidget(spot_title)
 
-        spotlight_subtitle = QLabel(
-            "Browse thousands of open-source fonts from Fontsource, Font Squirrel, and Nerd Fonts with live native previews.",
+        spot_subtitle = QLabel(
+            "Explore featured collections for user interfaces, code editing, long-form reading, and typography design.",
             spotlight,
         )
-        spotlight_subtitle.setObjectName("spotlightSubtitle")
-        spotlight_subtitle.setWordWrap(True)
-        spotlight_layout.addWidget(spotlight_subtitle)
+        spot_subtitle.setObjectName("spotlightSubtitle")
+        spot_subtitle.setWordWrap(True)
+        spotlight_layout.addWidget(spot_subtitle)
 
-        # Sync Banner helper (shown if catalog is empty)
+        # Empty catalog sync banner (hidden when catalog has fonts)
         self._empty_notice = QWidget(spotlight)
         empty_layout = QHBoxLayout(self._empty_notice)
         empty_layout.setContentsMargins(0, 8, 0, 0)
@@ -275,7 +275,7 @@ class DiscoverView(QWidget):
 
         # Section Header
         section_label = QLabel("Browse Categories", container)
-        section_label.setStyleSheet("font-size: 15px; font-weight: 700; color: #f8fafc;")
+        section_label.setStyleSheet("font-size: 15px; font-weight: 700; color: #ffffff;")
         content_layout.addWidget(section_label)
 
         # 2-Column Responsive Category Grid

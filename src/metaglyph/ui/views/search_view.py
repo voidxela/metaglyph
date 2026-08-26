@@ -89,7 +89,7 @@ class SearchView(QWidget):
         info_layout.setSpacing(12)
 
         self._results_count_label = QLabel("Searching catalog...", info_bar)
-        self._results_count_label.setStyleSheet("color: #94a3b8; font-size: 12px; font-weight: 500;")
+        self._results_count_label.setStyleSheet("color: #c4b5d4; font-size: 12px; font-weight: 500;")
         info_layout.addWidget(self._results_count_label)
         info_layout.addStretch(1)
 
@@ -114,7 +114,7 @@ class SearchView(QWidget):
         empty_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._empty_title = QLabel("No Fonts Found", self._empty_widget)
-        self._empty_title.setStyleSheet("font-size: 16px; font-weight: 700; color: #cbd5e1;")
+        self._empty_title.setStyleSheet("font-size: 16px; font-weight: 700; color: #ffffff;")
         self._empty_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(self._empty_title)
 
@@ -122,7 +122,7 @@ class SearchView(QWidget):
             "Try adjusting your search query or reset the active category and provider filters.",
             self._empty_widget,
         )
-        self._empty_desc.setStyleSheet("color: #64748b; font-size: 12px;")
+        self._empty_desc.setStyleSheet("color: #8a769f; font-size: 12px;")
         self._empty_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(self._empty_desc)
 
@@ -139,7 +139,7 @@ class SearchView(QWidget):
         self._load_more_btn = QPushButton("Load More Fonts", self._cards_container)
         self._load_more_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._load_more_btn.setStyleSheet(
-            "QPushButton { background-color: #1e1e28; border: 1px solid #2d2d3c; color: #818cf8; padding: 10px; border-radius: 8px; font-weight: 600; } QPushButton:hover { background-color: #262634; border-color: #6366f1; }"
+            "QPushButton { background-color: #1b0a33; border: 1px solid #371666; color: #e879f9; padding: 10px; border-radius: 8px; font-weight: 600; } QPushButton:hover { background-color: #240d47; border-color: #771ebd; color: #ffffff; }"
         )
         self._load_more_btn.clicked.connect(self._on_load_more_clicked)
         self._load_more_btn.setVisible(False)

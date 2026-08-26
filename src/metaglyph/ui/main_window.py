@@ -27,6 +27,7 @@ from metaglyph.installer.user_installer import UserFontInstaller
 from metaglyph.providers.manager import ProviderManager
 from metaglyph.subsetting.fetcher import SubsetFetcher
 from metaglyph.ui.components.sidebar import SidebarWidget
+from metaglyph.ui.theme.icons import get_app_icon
 from metaglyph.ui.views.detail_pane import DetailPane
 from metaglyph.ui.views.discover_view import DiscoverView
 from metaglyph.ui.views.search_view import SearchView
@@ -74,6 +75,7 @@ class MainWindow(QMainWindow):
 
     def _init_window(self) -> None:
         self.setWindowTitle("Metaglyph - Modern Font Browser & Installer")
+        self.setWindowIcon(get_app_icon())
         self.resize(1280, 820)
         self.setMinimumSize(960, 600)
 
@@ -146,7 +148,7 @@ class MainWindow(QMainWindow):
         self._status_bar.addPermanentWidget(self._status_stats_label)
 
         self._status_version_label = QLabel("v0.1.0", self._status_bar)
-        self._status_version_label.setStyleSheet("color: #475569; font-weight: 600;")
+        self._status_version_label.setStyleSheet("color: #6e5a85; font-weight: 600;")
         self._status_bar.addPermanentWidget(self._status_version_label)
 
         self.setStatusBar(self._status_bar)

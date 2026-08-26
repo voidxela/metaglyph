@@ -106,7 +106,144 @@ ICON_SVGS: dict[str, str] = {
 }
 
 
-def render_svg_pixmap(name: str, color: str = "#94a3b8", size: int = 18) -> QPixmap:
+from pathlib import Path
+
+
+def get_brand_asset_path(asset_name: str) -> Path:
+    """Resolve path to a brand asset, checking package assets, repo assets, and system locations."""
+    # 1. Package bundled assets (src/metaglyph/ui/assets)
+    pkg_assets = Path(__file__).resolve().parents[1] / "assets" / asset_name
+    if pkg_assets.exists():
+        return pkg_assets
+
+    # 2. Repo assets (assets/brand or assets/icons)
+    repo_root = Path(__file__).resolve().parents[4]
+    for candidate in (
+        repo_root / "assets" / "brand" / asset_name,
+        repo_root / "assets" / "icons" / asset_name,
+        repo_root / "assets" / asset_name,
+    ):
+        if candidate.exists():
+            return candidate
+
+    return pkg_assets
+
+
+def get_app_icon() -> QIcon:
+    """Create a high-fidelity multi-resolution application icon for Metaglyph."""
+    icon = QIcon()
+    ico_path = get_brand_asset_path("metaglyph.ico")
+    if ico_path.exists():
+        icon = QIcon(str(ico_path))
+
+    # Add specific size PNG frames if available
+    for size in (16, 24, 32, 48, 64, 96, 128, 256, 512):
+        png_name = f"metaglyph-{size}.png"
+        png_path = get_brand_asset_path(png_name)
+        if png_path.exists():
+            icon.addFile(str(png_path), QSize(size, size))
+
+    if icon.isNull():
+        mark_png = get_brand_asset_path("metaglyph-mark.png")
+        if mark_png.exists():
+            icon = QIcon(str(mark_png))
+
+    return icon
+
+
+def get_brand_lockup_pixmap(theme: str = "light", width: int = 172) -> QPixmap:
+    """Render the official MetaGlyph horizontal brand lockup into a crisp QPixmap.
+
+    Uses 'light' for dark surfaces (white wordmark + 3D mark) as specified by BRAND_GUIDELINES.md.
+    Uses 'dark' for light surfaces (midnight indigo wordmark + 3D mark).
+    """
+    # 1. Try pre-rendered high-res PNG
+    asset_name = f"metaglyph-lockup-horizontal-{theme}.png"
+    asset_path = get_brand_asset_path(asset_name)
+    if not asset_path.exists():
+        asset_name = f"metaglyph-horizontal-{theme}-1000w.png"
+        asset_path = get_brand_asset_path(asset_name)
+
+    if asset_path.exists():
+        source_px = QPixmap(str(asset_path))
+        if not source_px.isNull():
+            target_w = width * 2
+            target_h = int(target_w * source_px.height() / source_px.width())
+            scaled = source_px.scaled(
+                target_w,
+                target_h,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            scaled.setDevicePixelRatio(2.0)
+            return scaled
+
+    # 2. Try SVG renderer
+    svg_name = f"metaglyph-lockup-horizontal-{theme}.svg"
+    svg_path = get_brand_asset_path(svg_name)
+    if svg_path.exists():
+        renderer = QSvgRenderer(str(svg_path))
+        target_w = width * 2
+        target_h = int(target_w * 680 / 2836)
+        pixmap = QPixmap(target_w, target_h)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        renderer.render(painter)
+        painter.end()
+        pixmap.setDevicePixelRatio(2.0)
+        return pixmap
+
+    empty = QPixmap(width, int(width * 680 / 2836))
+    empty.fill(Qt.GlobalColor.transparent)
+    return empty
+
+
+def get_brand_wordmark_pixmap(theme: str = "light", width: int = 160) -> QPixmap:
+    """Render the official MetaGlyph standalone wordmark into a crisp QPixmap."""
+    asset_name = f"metaglyph-wordmark-{theme}.png"
+    asset_path = get_brand_asset_path(asset_name)
+    if asset_path.exists():
+        source_px = QPixmap(str(asset_path))
+        if not source_px.isNull():
+            target_w = width * 2
+            target_h = int(target_w * source_px.height() / source_px.width())
+            scaled = source_px.scaled(
+                target_w,
+                target_h,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            scaled.setDevicePixelRatio(2.0)
+            return scaled
+    empty = QPixmap(width, int(width * 209 / 1842))
+    empty.fill(Qt.GlobalColor.transparent)
+    return empty
+
+
+def get_brand_mark_pixmap(size: int = 64) -> QPixmap:
+    """Render the standalone 3D MetaGlyph mark icon into a crisp QPixmap."""
+    asset_name = "metaglyph-mark.png"
+    asset_path = get_brand_asset_path(asset_name)
+    if asset_path.exists():
+        source_px = QPixmap(str(asset_path))
+        if not source_px.isNull():
+            target_size = size * 2
+            scaled = source_px.scaled(
+                target_size,
+                target_size,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            scaled.setDevicePixelRatio(2.0)
+            return scaled
+    empty = QPixmap(size, size)
+    empty.fill(Qt.GlobalColor.transparent)
+    return empty
+
+
+def render_svg_pixmap(name: str, color: str = "#c4b5d4", size: int = 18) -> QPixmap:
     """Render a named SVG icon into a crisp transparent QPixmap."""
     svg_template = ICON_SVGS.get(name)
     if not svg_template:
@@ -132,10 +269,10 @@ def render_svg_pixmap(name: str, color: str = "#94a3b8", size: int = 18) -> QPix
 
 def create_themed_icon(
     name: str,
-    normal_color: str = "#94a3b8",
-    active_color: str = "#818cf8",
-    disabled_color: str = "#475569",
-    hover_color: str = "#f8fafc",
+    normal_color: str = "#c4b5d4",
+    active_color: str = "#e879f9",
+    disabled_color: str = "#58446e",
+    hover_color: str = "#ffffff",
     size: int = 18,
 ) -> QIcon:
     """Create a multi-state QIcon with support for Normal, Active/Checked, Hover, and Disabled states."""

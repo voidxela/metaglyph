@@ -138,7 +138,7 @@ class SystemFontItemWidget(QFrame):
         display_name = f"{self.family_name} — {self.style_name}"
         self.name_label = QLabel(display_name, self)
         self.name_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        self.name_label.setStyleSheet("font-size: 13px; font-weight: 600; color: #f8fafc;")
+        self.name_label.setStyleSheet("font-size: 13px; font-weight: 600; color: #ffffff;")
         row_layout.addWidget(self.name_label)
 
         # Subtle sub label (kept for backwards compatibility)
@@ -150,7 +150,7 @@ class SystemFontItemWidget(QFrame):
             sub_text = Path(self.file_path).name if self.file_path else ""
         self.sub_label = QLabel(sub_text, self)
         self.sub_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        self.sub_label.setStyleSheet("color: #64748b; font-size: 11px;")
+        self.sub_label.setStyleSheet("color: #8a769f; font-size: 11px;")
         row_layout.addWidget(self.sub_label)
 
         row_layout.addStretch(1)
@@ -161,7 +161,7 @@ class SystemFontItemWidget(QFrame):
             format_badge = QLabel(fmt, self)
             format_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
             format_badge.setStyleSheet(
-                "background-color: #1e2230; color: #94a3b8; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 3px;"
+                "background-color: #1f0b3b; color: #c4b5d4; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 3px; border: 1px solid #371666;"
             )
             row_layout.addWidget(format_badge)
 
@@ -171,7 +171,7 @@ class SystemFontItemWidget(QFrame):
         scope_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         scope_color = "#38bdf8" if scope == "User" else "#f59e0b"
         scope_badge.setStyleSheet(
-            f"background-color: #1c2438; color: {scope_color}; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;"
+            f"background-color: #1f0b3b; color: {scope_color}; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid #371666;"
         )
         row_layout.addWidget(scope_badge)
 
@@ -180,7 +180,7 @@ class SystemFontItemWidget(QFrame):
             mgmt_badge = QLabel("Managed", self)
             mgmt_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
             mgmt_badge.setStyleSheet(
-                "background-color: #064e3b; color: #34d399; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;"
+                "background-color: #064e3b; color: #34d399; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid #059669;"
             )
             row_layout.addWidget(mgmt_badge)
 
@@ -427,7 +427,7 @@ class SystemFontFamilyWidget(QFrame):
 
         self.chevron_label = QLabel("▶" if self._is_collapsed else "▼", self.header_frame)
         self.chevron_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        self.chevron_label.setStyleSheet("color: #64748b; font-size: 11px; font-weight: 700;")
+        self.chevron_label.setStyleSheet("color: #8a769f; font-size: 11px; font-weight: 700;")
         header_layout.addWidget(self.chevron_label)
 
         self.family_checkbox = QCheckBox(self.header_frame)
@@ -437,13 +437,13 @@ class SystemFontFamilyWidget(QFrame):
 
         self.title_label = QLabel(self.family_name, self.header_frame)
         self.title_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        self.title_label.setStyleSheet("font-size: 14px; font-weight: 700; color: #f8fafc;")
+        self.title_label.setStyleSheet("font-size: 14px; font-weight: 700; color: #ffffff;")
         header_layout.addWidget(self.title_label)
 
         self.count_badge = QLabel("0 variants", self.header_frame)
         self.count_badge.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self.count_badge.setStyleSheet(
-            "background-color: #22222e; color: #94a3b8; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px;"
+            "background-color: #280e4d; color: #c4b5d4; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid #471987;"
         )
         header_layout.addWidget(self.count_badge)
 
@@ -551,18 +551,18 @@ class SystemFontFamilyWidget(QFrame):
         if "User" in scopes:
             b = QLabel("User", self.header_frame)
             b.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-            b.setStyleSheet("background-color: #1c2438; color: #38bdf8; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;")
+            b.setStyleSheet("background-color: #1f0b3b; color: #38bdf8; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid #371666;")
             self.scope_container.addWidget(b)
         if "System" in scopes:
             b = QLabel("System", self.header_frame)
             b.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-            b.setStyleSheet("background-color: #1c2438; color: #f59e0b; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;")
+            b.setStyleSheet("background-color: #1f0b3b; color: #f59e0b; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid #371666;")
             self.scope_container.addWidget(b)
 
         if any(c.is_managed for c in self.cards):
             mb = QLabel("Managed", self.header_frame)
             mb.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-            mb.setStyleSheet("background-color: #064e3b; color: #34d399; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;")
+            mb.setStyleSheet("background-color: #064e3b; color: #34d399; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; border: 1px solid #059669;")
             self.scope_container.addWidget(mb)
 
 
@@ -604,8 +604,8 @@ class SystemView(QWidget):
 
     def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(24, 20, 24, 16)
-        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(24, 20, 24, 20)
+        main_layout.setSpacing(16)
 
         # 1. Header section
         header_layout = QHBoxLayout()
@@ -615,14 +615,14 @@ class SystemView(QWidget):
         title_layout.setSpacing(2)
 
         title_label = QLabel("Installed Fonts", self)
-        title_label.setStyleSheet("font-size: 18px; font-weight: 800; color: #f8fafc;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: 800; color: #ffffff;")
         title_layout.addWidget(title_label)
 
         sub_label = QLabel(
             "Inspect local user and system fonts, and manage installations.",
             self,
         )
-        sub_label.setStyleSheet("color: #64748b; font-size: 12px;")
+        sub_label.setStyleSheet("color: #8a769f; font-size: 12px;")
         title_layout.addWidget(sub_label)
 
         header_layout.addLayout(title_layout)
@@ -694,7 +694,7 @@ class SystemView(QWidget):
 
         self._deselect_all_btn = QPushButton("Deselect All", self._batch_bar)
         self._deselect_all_btn.setStyleSheet(
-            "background-color: transparent; color: #94a3b8; font-size: 11px; font-weight: 500; border: none; padding: 2px 6px;"
+            "background-color: transparent; color: #8a769f; font-size: 11px; font-weight: 500; border: none; padding: 2px 6px;"
         )
         self._deselect_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._deselect_all_btn.clicked.connect(lambda: self.set_all_selected(False))
@@ -709,7 +709,7 @@ class SystemView(QWidget):
         self._expand_all_btn = QPushButton("Expand All", self._batch_bar)
         self._expand_all_btn.setObjectName("expandAllBtn")
         self._expand_all_btn.setIcon(
-            create_themed_icon("chevron-down", normal_color="#94a3b8", active_color="#f1f5f9", size=13)
+            create_themed_icon("chevron-down", normal_color="#c4b5d4", active_color="#ffffff", size=13)
         )
         self._expand_all_btn.setIconSize(QSize(13, 13))
         self._expand_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -719,7 +719,7 @@ class SystemView(QWidget):
         self._collapse_all_btn = QPushButton("Collapse All", self._batch_bar)
         self._collapse_all_btn.setObjectName("collapseAllBtn")
         self._collapse_all_btn.setIcon(
-            create_themed_icon("chevron-right", normal_color="#94a3b8", active_color="#f1f5f9", size=13)
+            create_themed_icon("chevron-right", normal_color="#c4b5d4", active_color="#ffffff", size=13)
         )
         self._collapse_all_btn.setIconSize(QSize(13, 13))
         self._collapse_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -729,7 +729,7 @@ class SystemView(QWidget):
         self._batch_uninstall_btn = QPushButton("Batch Uninstall", self._batch_bar)
         self._batch_uninstall_btn.setObjectName("batchUninstallBtn")
         self._batch_uninstall_btn.setIcon(
-            create_themed_icon("trash-2", normal_color="#fef2f2", active_color="#ffffff", disabled_color="#475569", size=14)
+            create_themed_icon("trash-2", normal_color="#fef2f2", active_color="#ffffff", disabled_color="#58446e", size=14)
         )
         self._batch_uninstall_btn.setIconSize(QSize(14, 14))
         self._batch_uninstall_btn.setEnabled(False)
@@ -753,14 +753,14 @@ class SystemView(QWidget):
         # Scanning / Loading indicator label
         self._loading_label = QLabel("Scanning system fonts...", self._list_container)
         self._loading_label.setObjectName("systemLoadingLabel")
-        self._loading_label.setStyleSheet("color: #818cf8; font-size: 13px; font-weight: 600; padding: 32px;")
+        self._loading_label.setStyleSheet("color: #e879f9; font-size: 13px; font-weight: 600; padding: 32px;")
         self._loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._loading_label.setVisible(False)
         self._list_layout.addWidget(self._loading_label)
 
         # Empty state label
         self._empty_label = QLabel("No installed fonts found.", self._list_container)
-        self._empty_label.setStyleSheet("color: #64748b; font-size: 13px; padding: 32px;")
+        self._empty_label.setStyleSheet("color: #8a769f; font-size: 13px; padding: 32px;")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty_label.setVisible(False)
         self._list_layout.addWidget(self._empty_label)

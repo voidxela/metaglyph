@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from metaglyph.ui.theme.icons import create_themed_icon
+from metaglyph.ui.theme.icons import create_themed_icon, get_brand_lockup_pixmap
 
 
 class SidebarWidget(QWidget):
@@ -35,15 +35,18 @@ class SidebarWidget(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Header / Brand Section
+        # Header / Brand Section with official MetaGlyph horizontal lockup
         header_widget = QWidget(self)
         header_widget.setObjectName("sidebarHeader")
         header_layout = QVBoxLayout(header_widget)
-        header_layout.setContentsMargins(16, 20, 16, 16)
-        header_layout.setSpacing(4)
+        header_layout.setContentsMargins(16, 18, 16, 12)
+        header_layout.setSpacing(6)
 
-        logo_label = QLabel("METAGLYPH", header_widget)
+        logo_label = QLabel(header_widget)
         logo_label.setObjectName("sidebarLogo")
+        logo_pixmap = get_brand_lockup_pixmap("light", width=172)
+        logo_label.setPixmap(logo_pixmap)
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         header_layout.addWidget(logo_label)
 
         sub_label = QLabel("Font Manager & Browser", header_widget)
@@ -93,11 +96,11 @@ class SidebarWidget(QWidget):
 
         self._sync_btn = QPushButton("Sync Catalog", sync_container)
         self._sync_btn.setObjectName("syncBtn")
-        self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#94a3b8", active_color="#f1f5f9", size=14))
+        self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#c4b5d4", active_color="#ffffff", size=14))
         self._sync_btn.setIconSize(QSize(14, 14))
         self._sync_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._sync_btn.setStyleSheet(
-            "QPushButton { background-color: #22222c; border: 1px solid #313140; color: #94a3b8; padding: 8px 12px; border-radius: 6px; font-weight: 600; text-align: center; } QPushButton:hover { background-color: #2b2b38; color: #f1f5f9; border-color: #444458; }"
+            "QPushButton { background-color: #1b0a33; border: 1px solid #371666; color: #c4b5d4; padding: 8px 12px; border-radius: 6px; font-weight: 600; text-align: center; } QPushButton:hover { background-color: #240d47; color: #ffffff; border-color: #5c24a3; }"
         )
         self._sync_btn.clicked.connect(self._on_sync_clicked)
         sync_layout.addWidget(self._sync_btn)
@@ -150,9 +153,9 @@ class SidebarWidget(QWidget):
         self._is_syncing = is_syncing
         if is_syncing:
             self._sync_btn.setEnabled(False)
-            self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#64748b", active_color="#64748b", size=14))
+            self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#58446e", active_color="#58446e", size=14))
             self._sync_btn.setText(message)
         else:
             self._sync_btn.setEnabled(True)
-            self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#94a3b8", active_color="#f1f5f9", size=14))
+            self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#c4b5d4", active_color="#ffffff", size=14))
             self._sync_btn.setText("Sync Catalog")

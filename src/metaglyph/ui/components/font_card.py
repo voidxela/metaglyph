@@ -114,7 +114,7 @@ class FontCard(QFrame):
         self._error_badge = QLabel("⚠ Preview Unavailable", header_widget)
         self._error_badge.setObjectName("fontPreviewErrorBadge")
         self._error_badge.setStyleSheet(
-            "background-color: #27272a; color: #fbbf24; font-size: 11px; "
+            "background-color: #2e1053; color: #f59e0b; font-size: 11px; "
             "padding: 2px 7px; border-radius: 4px; border: 1px solid #78350f;"
         )
         self._error_badge.setVisible(False)
@@ -191,7 +191,7 @@ class FontCard(QFrame):
         if selected:
             self.setProperty("class", "selected")
             self.setStyleSheet(
-                "#fontCard { border: 1.5px solid #6366f1; background-color: #1f1f2a; }"
+                "#fontCard { border: 1.5px solid #771ebd; background-color: #250d48; }"
             )
         else:
             self.setProperty("class", "")

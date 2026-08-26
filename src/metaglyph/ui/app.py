@@ -19,6 +19,7 @@ from metaglyph.subsetting.cache import SubsetCache
 from metaglyph.subsetting.fetcher import SubsetFetcher
 from metaglyph.subsetting.loader import FontLoader
 from metaglyph.ui.main_window import MainWindow
+from metaglyph.ui.theme.icons import get_app_icon
 from metaglyph.ui.theme.qss_builder import apply_theme
 
 logger = logging.getLogger("metaglyph.ui.app")
@@ -33,6 +34,9 @@ def create_application() -> QApplication:
     app.setApplicationName("Metaglyph")
     app.setOrganizationName("Metaglyph")
     app.setApplicationVersion("0.1.0")
+
+    # Set official MetaGlyph desktop window icon
+    app.setWindowIcon(get_app_icon())
 
     # Apply modern cross-platform Fusion style and dark theme
     app.setStyle("Fusion")

@@ -131,7 +131,7 @@ class DetailPane(QFrame):
 
         self._close_btn = QPushButton("✕", container)
         self._close_btn.setStyleSheet(
-            "background-color: transparent; color: #64748b; font-size: 14px; font-weight: bold; border: none; padding: 2px 6px;"
+            "background-color: transparent; color: #8a769f; font-size: 14px; font-weight: bold; border: none; padding: 2px 6px;"
         )
         self._close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._close_btn.clicked.connect(self.closed.emit)
@@ -175,7 +175,7 @@ class DetailPane(QFrame):
         # Separator line
         sep1 = QFrame(container)
         sep1.setFrameShape(QFrame.Shape.HLine)
-        sep1.setStyleSheet("color: #262632;")
+        sep1.setStyleSheet("color: #2a104f;")
         main_layout.addWidget(sep1)
         main_layout.addSpacing(4)
 
@@ -187,7 +187,7 @@ class DetailPane(QFrame):
         size_header_layout.addStretch(1)
 
         self._size_val_label = QLabel("24 pt", container)
-        self._size_val_label.setStyleSheet("color: #818cf8; font-weight: 600; font-size: 11px;")
+        self._size_val_label.setStyleSheet("color: #e879f9; font-weight: 600; font-size: 11px;")
         size_header_layout.addWidget(self._size_val_label)
         main_layout.addLayout(size_header_layout)
 

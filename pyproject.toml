@@ -42,6 +42,9 @@ metaglyph = "metaglyph.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"metaglyph.ui" = ["assets/*", "theme/*.qss"]
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]

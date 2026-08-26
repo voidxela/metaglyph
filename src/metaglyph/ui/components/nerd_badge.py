@@ -50,7 +50,7 @@ class NerdFontBadge(QFrame):
 
         self._title_label = QLabel("◈ Nerd Font Counterpart Available", self)
         self._title_label.setObjectName("nerdBadgeTitle")
-        self._title_label.setStyleSheet("color: #c084fc; font-weight: 700; font-size: 12px;")
+        self._title_label.setStyleSheet("color: #e879f9; font-weight: 700; font-size: 12px;")
         header_layout.addWidget(self._title_label)
 
         header_layout.addStretch(1)
@@ -61,7 +61,7 @@ class NerdFontBadge(QFrame):
             "Includes developer icons, glyphs, and ligatures.", self
         )
         self._desc_label.setObjectName("nerdBadgeDesc")
-        self._desc_label.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        self._desc_label.setStyleSheet("color: #c4b5d4; font-size: 11px;")
         self._desc_label.setWordWrap(True)
         main_layout.addWidget(self._desc_label)
 
@@ -71,7 +71,7 @@ class NerdFontBadge(QFrame):
         controls_layout.setSpacing(8)
 
         self._var_label = QLabel("Variant:", self)
-        self._var_label.setStyleSheet("color: #cbd5e1; font-size: 11px; font-weight: 600;")
+        self._var_label.setStyleSheet("color: #e9e9e9; font-size: 11px; font-weight: 600;")
         controls_layout.addWidget(self._var_label)
 
         self._variant_combo = QComboBox(self)
@@ -87,8 +87,8 @@ class NerdFontBadge(QFrame):
         self._switch_btn.setObjectName("nerdBadgeBtn")
         self._switch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._switch_btn.setStyleSheet(
-            "QPushButton { background-color: #4c1d95; color: #f5d0fe; border: 1px solid #7c3aed; padding: 4px 10px; border-radius: 5px; font-weight: 600; font-size: 11px; } "
-            "QPushButton:hover { background-color: #5b21b6; color: #ffffff; border-color: #a855f7; }"
+            "QPushButton { background-color: #771ebd; color: #ffffff; border: 1px solid #8d2cd6; padding: 4px 10px; border-radius: 5px; font-weight: 600; font-size: 11px; } "
+            "QPushButton:hover { background-color: #8d2cd6; color: #ffffff; border-color: #a847f0; }"
         )
         self._switch_btn.clicked.connect(self._on_switch_clicked)
         controls_layout.addWidget(self._switch_btn, stretch=2)
@@ -97,7 +97,7 @@ class NerdFontBadge(QFrame):
         self.setLayout(main_layout)
 
         self.setStyleSheet(
-            "QFrame#nerdBadge { background-color: #1c132b; border: 1px solid #3f1e68; border-radius: 8px; }"
+            "QFrame#nerdBadge { background-color: #1f0b35; border: 1px solid #49107f; border-radius: 8px; }"
         )
 
     @property
