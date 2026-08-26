@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Metaglyph
+GenericName=Font Browser and Installer
+Comment=Modern desktop font browser and installer for Fontsource, Font Squirrel, and Nerd Fonts
+Exec=metaglyph %U
+Icon=metaglyph
+Terminal=false
+Categories=Graphics;Utility;Publishing;Viewer;
+Keywords=font;fonts;typography;typeface;glyph;installer;nerd-fonts;fontsource;fontsquirrel;
+StartupWMClass=metaglyph
+MimeType=font/ttf;font/otf;font/woff;font/woff2;
