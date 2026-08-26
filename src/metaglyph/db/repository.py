@@ -709,10 +709,22 @@ class FontRepository:
                         logger.warning("Failed to parse installed file paths JSON '%s': %s", row["file_paths"], exc)
 
 
+            params_list = []
             for entry in entries:
                 is_managed = 1 if (entry.file_path in managed_paths or entry.is_metaglyph_managed) else 0
                 style_name = getattr(entry, "style_name", "Regular") or "Regular"
-                await conn.execute(
+                params_list.append((
+                    entry.family_name,
+                    style_name,
+                    entry.postscript_name,
+                    entry.file_path,
+                    entry.scope,
+                    is_managed,
+                    entry.last_scanned_at,
+                ))
+
+            if params_list:
+                await conn.executemany(
                     """
                     INSERT INTO system_font_cache (
                         family_name, style_name, postscript_name, file_path,
@@ -726,15 +738,7 @@ class FontRepository:
                         is_metaglyph_managed = excluded.is_metaglyph_managed,
                         last_scanned_at = excluded.last_scanned_at
                     """,
-                    (
-                        entry.family_name,
-                        style_name,
-                        entry.postscript_name,
-                        entry.file_path,
-                        entry.scope,
-                        is_managed,
-                        entry.last_scanned_at,
-                    ),
+                    params_list,
                 )
             await conn.commit()
 

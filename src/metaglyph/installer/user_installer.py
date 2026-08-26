@@ -33,7 +33,7 @@ async def refresh_user_font_cache(target_dir: Path | None = None) -> bool:
         try:
             def _run_fc_cache() -> bool:
                 result = subprocess.run(
-                    ["fc-cache", "-f", str(target)],
+                    ["fc-cache", str(target)],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     timeout=15,
@@ -97,8 +97,6 @@ class UserFontInstaller(BaseInstaller):
             )
 
         target_dir = self.target_dir
-        logger.info("Ensuring user fonts directory exists: %s", target_dir)
-        target_dir.mkdir(parents=True, exist_ok=True)
 
         installed_paths: list[Path] = []
         errors: list[str] = []
@@ -106,6 +104,9 @@ class UserFontInstaller(BaseInstaller):
         def _do_copy() -> tuple[list[Path], list[str]]:
             copied: list[Path] = []
             errs: list[str] = []
+
+            logger.info("Ensuring user fonts directory exists: %s", target_dir)
+            target_dir.mkdir(parents=True, exist_ok=True)
 
             for src in font_files:
                 if not src.exists():
@@ -205,6 +206,7 @@ class UserFontInstaller(BaseInstaller):
         font_id: str,
         family_name: str,
         file_paths: list[Path],
+        refresh_cache: bool = True,
     ) -> InstallResult:
         """Delete user font files, rebuild user cache, and update repository."""
         uninstalled_paths: list[Path] = []
@@ -231,8 +233,9 @@ class UserFontInstaller(BaseInstaller):
 
         uninstalled_paths, errors = await asyncio.to_thread(_do_delete)
 
-        # Refresh user font cache
-        await refresh_user_font_cache(self.target_dir)
+        # Refresh user font cache if requested
+        if refresh_cache:
+            await refresh_user_font_cache(self.target_dir)
 
         # Remove from database
         if self._repository is not None:
@@ -260,4 +263,26 @@ class UserFontInstaller(BaseInstaller):
             errors=errors,
             message=f"Uninstalled {len(uninstalled_paths)} file(s) for {family_name}",
         )
+
+    async def uninstall_multiple_fonts(
+        self,
+        fonts_to_uninstall: list[tuple[str, str, list[Path]]],
+    ) -> list[InstallResult]:
+        """Uninstall multiple font families in batch, refreshing font cache once at the end."""
+        if not fonts_to_uninstall:
+            return []
+
+        results: list[InstallResult] = []
+        for font_id, family_name, file_paths in fonts_to_uninstall:
+            res = await self.uninstall_font(
+                font_id=font_id,
+                family_name=family_name,
+                file_paths=file_paths,
+                refresh_cache=False,
+            )
+            results.append(res)
+
+        # Refresh user font cache only once for the entire batch
+        await refresh_user_font_cache(self.target_dir)
+        return results
 

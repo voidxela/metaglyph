@@ -654,7 +654,7 @@ class DetailPane(QFrame):
             try:
                 import shutil
                 logger.info("Removing temporary download directory: %s", temp_dir)
-                shutil.rmtree(temp_dir, ignore_errors=True)
+                await asyncio.to_thread(shutil.rmtree, temp_dir, ignore_errors=True)
             except Exception as exc:
                 logger.warning("Failed to clean up temporary directory %s: %s", temp_dir, exc)
 

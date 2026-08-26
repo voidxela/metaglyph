@@ -312,7 +312,8 @@ class NerdFontsProvider(BaseFontProvider):
 
 
         subsetted = await asyncio.to_thread(subset_font_bytes, font_bytes, sample_text)
-        return self.cache.save_subset(
+        return await asyncio.to_thread(
+            self.cache.save_subset,
             font.id,
             sample_text,
             subsetted,
@@ -334,7 +335,7 @@ class NerdFontsProvider(BaseFontProvider):
             variant_filter: Optional filter ('Standard', 'Mono', 'Propo').
         """
         logger.info("Ensuring target directory exists: %s", target_dir)
-        target_dir.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(target_dir.mkdir, parents=True, exist_ok=True)
         client = await self.get_client()
         dl_url = resolve_nerd_font_download_url(font)
 
@@ -353,31 +354,36 @@ class NerdFontsProvider(BaseFontProvider):
                     async for chunk in resp.aiter_bytes(chunk_size=65536):
                         f.write(chunk)
 
-            logger.info("Reading header from temporary file: %s", tmp_path)
-            with tmp_path.open("rb") as f:
-                magic = f.read(4)
+            def _extract_nerd_archive(src_tmp: Path, dest_dir: Path, v_filter: str | None) -> list[Path]:
+                extracted: list[Path] = []
+                logger.info("Reading header from temporary file: %s", src_tmp)
+                with src_tmp.open("rb") as f:
+                    magic = f.read(4)
 
-            if magic == b"PK\x03\x04":
-                with zipfile.ZipFile(tmp_path) as z:
-                    for item in z.infolist():
-                        filename = Path(item.filename).name
-                        if not filename.lower().endswith((".ttf", ".otf")) or filename.startswith("."):
-                            continue
+                if magic == b"PK\x03\x04":
+                    with zipfile.ZipFile(src_tmp) as z:
+                        for item in z.infolist():
+                            filename = Path(item.filename).name
+                            if not filename.lower().endswith((".ttf", ".otf")) or filename.startswith("."):
+                                continue
 
-                        # Apply variant filter if specified
-                        if variant_filter and not matches_nerd_font_variant(filename, variant_filter):
-                            continue
+                            # Apply variant filter if specified
+                            if v_filter and not matches_nerd_font_variant(filename, v_filter):
+                                continue
 
-                        target_file = target_dir / filename
-                        logger.info("Writing extracted Nerd Font file: %s", target_file)
-                        target_file.write_bytes(z.read(item.filename))
-                        saved_files.append(target_file)
-            else:
-                # Single font file response
-                target_file = target_dir / f"{font.id}.ttf"
-                logger.info("Copying font file from %s to %s", tmp_path, target_file)
-                shutil.copyfile(tmp_path, target_file)
-                saved_files.append(target_file)
+                            target_file = dest_dir / filename
+                            logger.info("Writing extracted Nerd Font file: %s", target_file)
+                            target_file.write_bytes(z.read(item.filename))
+                            extracted.append(target_file)
+                else:
+                    # Single font file response
+                    target_file = dest_dir / f"{font.id}.ttf"
+                    logger.info("Copying font file from %s to %s", src_tmp, target_file)
+                    shutil.copyfile(src_tmp, target_file)
+                    extracted.append(target_file)
+                return extracted
+
+            saved_files = await asyncio.to_thread(_extract_nerd_archive, tmp_path, target_dir, variant_filter)
         finally:
             logger.info("Removing temporary download file: %s", tmp_path)
             tmp_path.unlink(missing_ok=True)

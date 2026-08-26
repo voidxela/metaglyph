@@ -96,14 +96,14 @@ class FontUninstaller:
 
         results: list[InstallResult] = []
 
-        # Process user fonts
-        for u_font in user_fonts:
-            res = await self._user_installer.uninstall_font(
-                font_id=u_font.font_id,
-                family_name=u_font.family_name,
-                file_paths=[Path(p) for p in u_font.file_paths],
-            )
-            results.append(res)
+        # Process user fonts in a single batch with a single cache refresh
+        if user_fonts:
+            user_tuples = [
+                (uf.font_id, uf.family_name, [Path(p) for p in uf.file_paths])
+                for uf in user_fonts
+            ]
+            user_results = await self._user_installer.uninstall_multiple_fonts(user_tuples)
+            results.extend(user_results)
 
         # Process system fonts in a single batch elevation manifest
         if system_fonts:

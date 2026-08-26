@@ -86,6 +86,59 @@ def _variant_sort_order(style_name: str) -> tuple[int, int, str]:
     return (weight_score, is_italic, style_name)
 
 
+def _extract_installed_items(
+    installed: list[InstalledFont],
+    system_fonts: list[SystemFontCacheEntry],
+    metaglyph_only: bool,
+) -> dict[str, dict]:
+    """Extract font metadata and group font items by normalized family name in background thread."""
+    families: dict[str, dict] = {}
+    installed_paths: set[str] = set()
+
+    for inst in installed:
+        norm_fam = normalize_family_name(inst.family_name)
+        if norm_fam not in families:
+            families[norm_fam] = {"display_name": inst.family_name, "items": []}
+
+        if inst.file_paths:
+            for p_str in inst.file_paths:
+                installed_paths.add(p_str)
+                fam, style, _ = extract_font_names(Path(p_str))
+                families[norm_fam]["items"].append({
+                    "item": inst,
+                    "family_name": inst.family_name,
+                    "style_name": style,
+                    "file_path": p_str,
+                    "is_managed": True,
+                })
+        else:
+            families[norm_fam]["items"].append({
+                "item": inst,
+                "family_name": inst.family_name,
+                "style_name": "Regular",
+                "file_path": "",
+                "is_managed": True,
+            })
+
+    if not metaglyph_only:
+        for sf in system_fonts:
+            if sf.file_path in installed_paths:
+                continue
+            norm_fam = normalize_family_name(sf.family_name)
+            if norm_fam not in families:
+                families[norm_fam] = {"display_name": sf.family_name, "items": []}
+
+            families[norm_fam]["items"].append({
+                "item": sf,
+                "family_name": sf.family_name,
+                "style_name": getattr(sf, "style_name", "Regular") or "Regular",
+                "file_path": sf.file_path,
+                "is_managed": sf.is_metaglyph_managed,
+            })
+
+    return {k: v for k, v in families.items() if v["items"]}
+
+
 class SystemFontItemWidget(QFrame):
     """Condensed single-line widget representing a single installed or system font variant."""
 
@@ -204,20 +257,8 @@ class SystemFontItemWidget(QFrame):
         details_layout.setContentsMargins(12, 10, 12, 10)
         details_layout.setSpacing(8)
 
-        # Load font into Qt application font database if file exists on disk
+        self._font_loaded = False
         preview_family = self.family_name
-        if self.file_path and Path(self.file_path).exists():
-            try:
-                logger.debug("Loading font file into QFontDatabase for preview: %s", self.file_path)
-                fid = QFontDatabase.addApplicationFont(str(self.file_path))
-                if fid >= 0:
-                    fams = QFontDatabase.applicationFontFamilies(fid)
-                    if fams:
-                        preview_family = fams[0]
-            except Exception as e:
-                logger.warning("Failed to load application font %s: %s", self.file_path, e)
-
-
 
         # Live Font Preview in Details Box
         is_italic = "italic" in self.style_name.lower() or "oblique" in self.style_name.lower()
@@ -307,6 +348,22 @@ class SystemFontItemWidget(QFrame):
         else:
             self.details_box.setMaximumHeight(16777215)
 
+    def _ensure_font_loaded(self) -> None:
+        """Lazily load application font file into Qt's QFontDatabase when expanded."""
+        if self._font_loaded or not self.file_path:
+            return
+        self._font_loaded = True
+        try:
+            p = Path(self.file_path)
+            if p.exists():
+                fid = QFontDatabase.addApplicationFont(str(self.file_path))
+                if fid >= 0:
+                    fams = QFontDatabase.applicationFontFamilies(fid)
+                    if fams:
+                        self.preview_widget.set_font_family(fams[0])
+        except Exception as e:
+            logger.warning("Failed to load application font %s: %s", self.file_path, e)
+
     def set_expanded(self, expanded: bool, animated: bool = True) -> None:
         if self._is_expanded == expanded:
             return
@@ -314,6 +371,9 @@ class SystemFontItemWidget(QFrame):
         self.setProperty("selected", expanded)
         self.style().unpolish(self)
         self.style().polish(self)
+
+        if expanded:
+            self._ensure_font_loaded()
 
         if not animated:
             self._details_anim.stop()
@@ -599,6 +659,7 @@ class SystemView(QWidget):
         self._is_scanning: bool = False
         self._is_uninstalling: bool = False
         self._has_scanned_on_open: bool = False
+        self._refresh_task: asyncio.Task | None = None
 
         self._init_ui()
 
@@ -848,9 +909,11 @@ class SystemView(QWidget):
 
     def trigger_refresh(self) -> None:
         """Schedule background database refresh."""
+        if hasattr(self, "_refresh_task") and self._refresh_task and not self._refresh_task.done():
+            self._refresh_task.cancel()
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(self.refresh_installed_async())
+            self._refresh_task = loop.create_task(self.refresh_installed_async())
         except RuntimeError:
             pass
 
@@ -880,6 +943,8 @@ class SystemView(QWidget):
 
             await self.detector.scan_and_sync(self.repository)
             await self.refresh_installed_async()
+        except asyncio.CancelledError:
+            pass
         except Exception as exc:
             logger.error("Failed to scan system fonts: %s", exc)
         finally:
@@ -914,56 +979,10 @@ class SystemView(QWidget):
             self._installed_fonts = installed
             self._system_fonts = system_fonts
 
-            # Group items by normalized family name
-            # key: normalized_family -> {"display_name": str, "items": list[dict]}
-            families: dict[str, dict] = {}
-
-            # 1. Process Metaglyph-installed fonts
-            installed_paths: set[str] = set()
-            for inst in installed:
-                norm_fam = normalize_family_name(inst.family_name)
-                if norm_fam not in families:
-                    families[norm_fam] = {"display_name": inst.family_name, "items": []}
-
-                if inst.file_paths:
-                    for p_str in inst.file_paths:
-                        installed_paths.add(p_str)
-                        fam, style, _ = extract_font_names(Path(p_str))
-                        families[norm_fam]["items"].append({
-                            "item": inst,
-                            "family_name": inst.family_name,
-                            "style_name": style,
-                            "file_path": p_str,
-                            "is_managed": True,
-                        })
-                else:
-                    families[norm_fam]["items"].append({
-                        "item": inst,
-                        "family_name": inst.family_name,
-                        "style_name": "Regular",
-                        "file_path": "",
-                        "is_managed": True,
-                    })
-
-            # 2. Process cached system fonts (skipping paths already accounted for in installed)
-            if not self._metaglyph_only:
-                for sf in system_fonts:
-                    if sf.file_path in installed_paths:
-                        continue
-                    norm_fam = normalize_family_name(sf.family_name)
-                    if norm_fam not in families:
-                        families[norm_fam] = {"display_name": sf.family_name, "items": []}
-
-                    families[norm_fam]["items"].append({
-                        "item": sf,
-                        "family_name": sf.family_name,
-                        "style_name": getattr(sf, "style_name", "Regular") or "Regular",
-                        "file_path": sf.file_path,
-                        "is_managed": sf.is_metaglyph_managed,
-                    })
-
-            # Clean up empty families (where all files might have been removed)
-            families = {k: v for k, v in families.items() if v["items"]}
+            # Group items by normalized family name in background thread
+            families = await asyncio.to_thread(
+                _extract_installed_items, installed, system_fonts, self._metaglyph_only
+            )
 
             total_items = sum(len(f["items"]) for f in families.values())
             has_existing = len(self._family_widgets) > 0

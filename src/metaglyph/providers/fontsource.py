@@ -159,7 +159,8 @@ class FontsourceProvider(BaseFontProvider):
 
         # Create micro-subset with fontTools
         subsetted_bytes = await asyncio.to_thread(subset_font_bytes, font_bytes, sample_text)
-        return self.cache.save_subset(
+        return await asyncio.to_thread(
+            self.cache.save_subset,
             font.id,
             sample_text,
             subsetted_bytes,
@@ -174,7 +175,7 @@ class FontsourceProvider(BaseFontProvider):
     ) -> list[Path]:
         """Download all font files (TTF) for the Fontsource family."""
         logger.info("Ensuring target directory exists: %s", target_dir)
-        target_dir.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(target_dir.mkdir, parents=True, exist_ok=True)
         client = await self.get_client()
 
         # If font has no variants, create default 400 normal
@@ -210,7 +211,7 @@ class FontsourceProvider(BaseFontProvider):
                     res = await client.get(v.download_url)
                     res.raise_for_status()
                     logger.info("Writing downloaded font file: %s", dest_path)
-                    dest_path.write_bytes(res.content)
+                    await asyncio.to_thread(dest_path.write_bytes, res.content)
                     return dest_path
             except Exception as exc:
                 logger.warning("Failed to download variant %s: %s", v.download_url, exc)

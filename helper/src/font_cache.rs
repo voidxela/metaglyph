@@ -20,7 +20,6 @@ pub fn refresh_font_cache(target_dir: Option<&Path>) -> Result<()> {
 /// Refresh font cache on Linux using `fc-cache`.
 fn refresh_linux_font_cache(target_dir: Option<&Path>) -> Result<()> {
     let mut cmd = Command::new("fc-cache");
-    cmd.arg("-f");
 
     if let Some(dir) = target_dir {
         cmd.arg(dir);

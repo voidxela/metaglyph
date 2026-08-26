@@ -355,7 +355,8 @@ class FontSquirrelProvider(BaseFontProvider):
             )
 
         subsetted = await asyncio.to_thread(subset_font_bytes, font_bytes, sample_text)
-        return self.cache.save_subset(
+        return await asyncio.to_thread(
+            self.cache.save_subset,
             font.id,
             sample_text,
             subsetted,
@@ -370,7 +371,7 @@ class FontSquirrelProvider(BaseFontProvider):
     ) -> list[Path]:
         """Download complete Font Squirrel font family and extract TTF/OTF files into target directory."""
         logger.info("Ensuring target directory exists: %s", target_dir)
-        target_dir.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(target_dir.mkdir, parents=True, exist_ok=True)
         client = await self.get_client()
 
         saved_files: list[Path] = []
@@ -396,7 +397,7 @@ class FontSquirrelProvider(BaseFontProvider):
                             raise ValueError(f"HTTP {r.status_code}")
                         if not any(r.content.startswith(m) for m in VALID_FONT_MAGICS):
                             raise ValueError("Invalid font binary signature")
-                        dest.write_bytes(r.content)
+                        await asyncio.to_thread(dest.write_bytes, r.content)
                         logger.info("Saved font variant: %s", dest)
                         return dest
                     except Exception as exc:
@@ -422,26 +423,31 @@ class FontSquirrelProvider(BaseFontProvider):
                     async for chunk in resp.aiter_bytes(chunk_size=65536):
                         f.write(chunk)
 
-            with tmp_path.open("rb") as f:
-                magic = f.read(4)
+            def _extract_kit(src_tmp: Path, dest_dir: Path) -> list[Path]:
+                extracted_files: list[Path] = []
+                with src_tmp.open("rb") as f:
+                    magic = f.read(4)
 
-            if magic == b"PK\x03\x04":
-                with zipfile.ZipFile(tmp_path) as z:
-                    for item in z.infolist():
-                        filename = Path(item.filename).name
-                        if not filename.lower().endswith((".ttf", ".otf")) or filename.startswith(".") or "__MACOSX" in item.filename:
-                            continue
+                if magic == b"PK\x03\x04":
+                    with zipfile.ZipFile(src_tmp) as z:
+                        for item in z.infolist():
+                            filename = Path(item.filename).name
+                            if not filename.lower().endswith((".ttf", ".otf")) or filename.startswith(".") or "__MACOSX" in item.filename:
+                                continue
 
-                        target_file = target_dir / filename
-                        logger.info("Writing extracted Font Squirrel file: %s", target_file)
-                        target_file.write_bytes(z.read(item.filename))
-                        saved_files.append(target_file)
-            else:
-                ext = font.variants[0].file_format if font.variants else "ttf"
-                target_file = target_dir / f"{font.id}.{ext}"
-                logger.info("Writing downloaded single font file: %s", target_file)
-                shutil.copyfile(tmp_path, target_file)
-                saved_files.append(target_file)
+                            target_file = dest_dir / filename
+                            logger.info("Writing extracted Font Squirrel file: %s", target_file)
+                            target_file.write_bytes(z.read(item.filename))
+                            extracted_files.append(target_file)
+                else:
+                    ext = font.variants[0].file_format if font.variants else "ttf"
+                    target_file = dest_dir / f"{font.id}.{ext}"
+                    logger.info("Writing downloaded single font file: %s", target_file)
+                    shutil.copyfile(src_tmp, target_file)
+                    extracted_files.append(target_file)
+                return extracted_files
+
+            saved_files = await asyncio.to_thread(_extract_kit, tmp_path, target_dir)
         finally:
             tmp_path.unlink(missing_ok=True)
 
