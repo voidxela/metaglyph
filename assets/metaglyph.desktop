@@ -1,9 +1,12 @@
 [Desktop Entry]
-Name=MetaGlyph
-Comment=MetaGlyph Desktop Application
+Type=Application
+Name=Metaglyph
+Comment=Modern cross-platform desktop font browser and installer
 Exec=metaglyph %U
 Icon=metaglyph
 Terminal=false
-Type=Application
 Categories=Graphics;Development;Utility;
 StartupWMClass=metaglyph
+StartupNotify=true
+X-AppImage-Version=0.1.0
+

@@ -25,15 +25,38 @@ from metaglyph.ui.theme.qss_builder import apply_theme
 logger = logging.getLogger("metaglyph.ui.app")
 
 
+def set_process_name(name: str = "metaglyph") -> None:
+    """Set Linux process comm name and title for desktop taskbars and system monitors."""
+    if sys.platform.startswith("linux"):
+        try:
+            import ctypes
+            import ctypes.util
+
+            libc_name = ctypes.util.find_library("c")
+            if libc_name:
+                libc = ctypes.CDLL(libc_name)
+                # PR_SET_NAME = 15
+                libc.prctl(15, name.encode("utf-8"), 0, 0, 0)
+        except Exception:
+            pass
+
+
 def create_application() -> QApplication:
     """Create or retrieve QApplication instance configured for Metaglyph."""
+    set_process_name("metaglyph")
+
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
 
-    app.setApplicationName("Metaglyph")
+    app.setApplicationName("metaglyph")
+    app.setApplicationDisplayName("Metaglyph")
     app.setOrganizationName("Metaglyph")
+    app.setOrganizationDomain("metaglyph.app")
     app.setApplicationVersion("0.1.0")
+
+    # Set desktop file name for Wayland app_id and FreeDesktop taskbar matching
+    app.setDesktopFileName("metaglyph.desktop")
 
     # Set official MetaGlyph desktop window icon
     app.setWindowIcon(get_app_icon())

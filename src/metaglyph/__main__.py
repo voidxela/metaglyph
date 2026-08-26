@@ -60,6 +60,17 @@ async def run_sync() -> int:
 
 def main() -> int:
     """Main application entry point."""
+    if sys.platform.startswith("linux"):
+        try:
+            import ctypes
+            import ctypes.util
+
+            libc_name = ctypes.util.find_library("c")
+            if libc_name:
+                ctypes.CDLL(libc_name).prctl(15, b"metaglyph", 0, 0, 0)
+        except Exception:
+            pass
+
     args = parse_args()
 
     if args.sync:

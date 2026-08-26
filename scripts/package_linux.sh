@@ -63,24 +63,46 @@ if [ ! -f "${REPO_ROOT}/assets/icons/metaglyph.svg" ] || [ ! -f "${REPO_ROOT}/as
     QT_QPA_PLATFORM=offscreen python3 "${REPO_ROOT}/scripts/generate_icons.py" || true
 fi
 
+# Synchronize icon assets to src/metaglyph/ui/assets
+mkdir -p "${REPO_ROOT}/src/metaglyph/ui/assets"
+cp -f "${REPO_ROOT}/assets/icons"/metaglyph* "${REPO_ROOT}/src/metaglyph/ui/assets/" 2>/dev/null || true
+
+# Desktop entry installation
 if [ -f "${REPO_ROOT}/assets/metaglyph.desktop" ]; then
     cp "${REPO_ROOT}/assets/metaglyph.desktop" "${APP_DIR}/metaglyph.desktop"
     cp "${REPO_ROOT}/assets/metaglyph.desktop" "${APP_DIR}/usr/share/applications/metaglyph.desktop"
 fi
 
+# Install complete Hicolor multi-resolution icon theme
+if [ -d "${REPO_ROOT}/assets/brand/desktop-icons/linux/hicolor" ]; then
+    cp -r "${REPO_ROOT}/assets/brand/desktop-icons/linux/hicolor/." "${APP_DIR}/usr/share/icons/hicolor/"
+fi
+
+for size in 16 24 32 48 64 96 128 256 512; do
+    mkdir -p "${APP_DIR}/usr/share/icons/hicolor/${size}x${size}/apps"
+    if [ -f "${REPO_ROOT}/assets/icons/metaglyph-${size}.png" ]; then
+        cp "${REPO_ROOT}/assets/icons/metaglyph-${size}.png" "${APP_DIR}/usr/share/icons/hicolor/${size}x${size}/apps/metaglyph.png"
+    elif [ -f "${REPO_ROOT}/assets/brand/desktop-icons/linux/metaglyph-${size}x${size}.png" ]; then
+        cp "${REPO_ROOT}/assets/brand/desktop-icons/linux/metaglyph-${size}x${size}.png" "${APP_DIR}/usr/share/icons/hicolor/${size}x${size}/apps/metaglyph.png"
+    fi
+done
+
+mkdir -p "${APP_DIR}/usr/share/icons/hicolor/scalable/apps"
 if [ -f "${REPO_ROOT}/assets/icons/metaglyph.svg" ]; then
-    cp "${REPO_ROOT}/assets/icons/metaglyph.svg" "${APP_DIR}/metaglyph.svg"
-    cp "${REPO_ROOT}/assets/icons/metaglyph.svg" "${APP_DIR}/.DirIcon"
     cp "${REPO_ROOT}/assets/icons/metaglyph.svg" "${APP_DIR}/usr/share/icons/hicolor/scalable/apps/metaglyph.svg"
 fi
 
-if [ -f "${REPO_ROOT}/assets/icons/metaglyph.png" ]; then
+# Root icons and .DirIcon required by AppImage specification
+if [ -f "${REPO_ROOT}/assets/icons/metaglyph-256.png" ]; then
+    cp "${REPO_ROOT}/assets/icons/metaglyph-256.png" "${APP_DIR}/metaglyph.png"
+    cp "${REPO_ROOT}/assets/icons/metaglyph-256.png" "${APP_DIR}/.DirIcon"
+elif [ -f "${REPO_ROOT}/assets/icons/metaglyph.png" ]; then
     cp "${REPO_ROOT}/assets/icons/metaglyph.png" "${APP_DIR}/metaglyph.png"
-    cp "${REPO_ROOT}/assets/icons/metaglyph.png" "${APP_DIR}/usr/share/icons/hicolor/256x256/apps/metaglyph.png"
+    cp "${REPO_ROOT}/assets/icons/metaglyph.png" "${APP_DIR}/.DirIcon"
 fi
 
-if [ -f "${REPO_ROOT}/assets/icons/metaglyph-512.png" ]; then
-    cp "${REPO_ROOT}/assets/icons/metaglyph-512.png" "${APP_DIR}/usr/share/icons/hicolor/512x512/apps/metaglyph.png"
+if [ -f "${REPO_ROOT}/assets/icons/metaglyph.svg" ]; then
+    cp "${REPO_ROOT}/assets/icons/metaglyph.svg" "${APP_DIR}/metaglyph.svg"
 fi
 
 # 4. Create AppRun launcher
@@ -91,6 +113,9 @@ set -e
 # Discover AppDir location
 HERE="$(dirname "$(readlink -f "${0}")")"
 export APPDIR="${HERE}"
+
+# FreeDesktop & XDG integration
+export XDG_DATA_DIRS="${APPDIR}/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 
 # Discover Python site-packages
 for p in "${APPDIR}/usr/venv/lib"/python3.*/site-packages "${APPDIR}/usr/venv/lib64"/python3.*/site-packages "${APPDIR}/usr/lib"/python3.*/site-packages; do
@@ -110,8 +135,13 @@ done
 
 export PATH="${APPDIR}/usr/venv/bin:${APPDIR}/usr/bin:${PATH}"
 export METAGLYPH_HELPER_PATH="${APPDIR}/usr/bin/metaglyph-helper"
+export ARGV0="metaglyph"
 
-if [ -x "${APPDIR}/usr/venv/bin/python3" ]; then
+if [ -x "${APPDIR}/usr/venv/bin/metaglyph" ]; then
+    exec "${APPDIR}/usr/venv/bin/metaglyph" "$@"
+elif [ -x "${APPDIR}/usr/bin/metaglyph" ]; then
+    exec "${APPDIR}/usr/bin/metaglyph" "$@"
+elif [ -x "${APPDIR}/usr/venv/bin/python3" ]; then
     exec "${APPDIR}/usr/venv/bin/python3" -m metaglyph "$@"
 elif [ -x "${APPDIR}/usr/bin/python3" ]; then
     exec "${APPDIR}/usr/bin/python3" -m metaglyph "$@"

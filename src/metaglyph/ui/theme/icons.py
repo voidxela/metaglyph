@@ -106,25 +106,43 @@ ICON_SVGS: dict[str, str] = {
 }
 
 
+import os
 from pathlib import Path
 
 
 def get_brand_asset_path(asset_name: str) -> Path:
-    """Resolve path to a brand asset, checking package assets, repo assets, and system locations."""
-    # 1. Package bundled assets (src/metaglyph/ui/assets)
+    """Resolve path to a brand asset, checking package assets, AppDir, repo assets, and system locations."""
+    # 1. Package bundled assets (src/metaglyph/ui/assets or site-packages/metaglyph/ui/assets)
     pkg_assets = Path(__file__).resolve().parents[1] / "assets" / asset_name
     if pkg_assets.exists():
         return pkg_assets
 
-    # 2. Repo assets (assets/brand or assets/icons)
-    repo_root = Path(__file__).resolve().parents[4]
-    for candidate in (
-        repo_root / "assets" / "brand" / asset_name,
-        repo_root / "assets" / "icons" / asset_name,
-        repo_root / "assets" / asset_name,
-    ):
-        if candidate.exists():
-            return candidate
+    # 2. AppDir locations if running inside AppImage
+    appdir = os.environ.get("APPDIR")
+    if appdir:
+        appdir_path = Path(appdir)
+        for candidate in (
+            appdir_path / asset_name,
+            appdir_path / "usr" / "share" / "icons" / "hicolor" / "scalable" / "apps" / asset_name,
+            appdir_path / "usr" / "share" / "icons" / "hicolor" / "256x256" / "apps" / asset_name,
+            appdir_path / "usr" / "share" / "icons" / "hicolor" / "512x512" / "apps" / asset_name,
+            appdir_path / "usr" / "share" / "metaglyph" / "assets" / asset_name,
+        ):
+            if candidate.exists():
+                return candidate
+
+    # 3. Dynamic ancestor traversal for repository assets (development mode)
+    cur = Path(__file__).resolve().parent
+    for _ in range(6):
+        cur = cur.parent
+        for candidate in (
+            cur / "assets" / "brand" / asset_name,
+            cur / "assets" / "icons" / asset_name,
+            cur / "assets" / "brand" / "desktop-icons" / "linux" / asset_name,
+            cur / "assets" / asset_name,
+        ):
+            if candidate.exists():
+                return candidate
 
     return pkg_assets
 
@@ -132,21 +150,43 @@ def get_brand_asset_path(asset_name: str) -> Path:
 def get_app_icon() -> QIcon:
     """Create a high-fidelity multi-resolution application icon for Metaglyph."""
     icon = QIcon()
+
+    # 1. Add specific size PNG frames for crisp multi-resolution display
+    for size in (16, 24, 32, 48, 64, 96, 128, 256, 512):
+        for candidate_name in (
+            f"metaglyph-{size}.png",
+            f"metaglyph-{size}x{size}.png",
+            f"metaglyph-mark-{size}x{size}.png",
+        ):
+            png_path = get_brand_asset_path(candidate_name)
+            if png_path.exists():
+                pix = QPixmap(str(png_path))
+                if not pix.isNull():
+                    icon.addPixmap(pix)
+                break
+
+    # 2. Add default/master PNG if icon has space or needs high-res fallback
+    for name in ("metaglyph.png", "metaglyph-app-icon.png", "metaglyph-mark.png"):
+        master_path = get_brand_asset_path(name)
+        if master_path.exists():
+            pix = QPixmap(str(master_path))
+            if not pix.isNull():
+                icon.addPixmap(pix)
+            break
+
+    # 3. Add Windows ICO container if present
     ico_path = get_brand_asset_path("metaglyph.ico")
     if ico_path.exists():
-        icon = QIcon(str(ico_path))
+        ico_icon = QIcon(str(ico_path))
+        if not ico_icon.isNull():
+            for s in ico_icon.availableSizes():
+                icon.addPixmap(ico_icon.pixmap(s))
 
-    # Add specific size PNG frames if available
-    for size in (16, 24, 32, 48, 64, 96, 128, 256, 512):
-        png_name = f"metaglyph-{size}.png"
-        png_path = get_brand_asset_path(png_name)
-        if png_path.exists():
-            icon.addFile(str(png_path), QSize(size, size))
-
-    if icon.isNull():
-        mark_png = get_brand_asset_path("metaglyph-mark.png")
-        if mark_png.exists():
-            icon = QIcon(str(mark_png))
+    # 4. Fallback to system theme icon if custom icon couldn't be loaded
+    if icon.isNull() or not icon.availableSizes():
+        theme_icon = QIcon.fromTheme("metaglyph")
+        if not theme_icon.isNull():
+            return theme_icon
 
     return icon
 
