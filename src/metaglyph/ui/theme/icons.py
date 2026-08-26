@@ -243,7 +243,7 @@ def get_brand_mark_pixmap(size: int = 64) -> QPixmap:
     return empty
 
 
-def render_svg_pixmap(name: str, color: str = "#c4b5d4", size: int = 18) -> QPixmap:
+def render_svg_pixmap(name: str, color: str = "#cbd5e1", size: int = 18) -> QPixmap:
     """Render a named SVG icon into a crisp transparent QPixmap."""
     svg_template = ICON_SVGS.get(name)
     if not svg_template:
@@ -269,9 +269,9 @@ def render_svg_pixmap(name: str, color: str = "#c4b5d4", size: int = 18) -> QPix
 
 def create_themed_icon(
     name: str,
-    normal_color: str = "#c4b5d4",
+    normal_color: str = "#cbd5e1",
     active_color: str = "#e879f9",
-    disabled_color: str = "#58446e",
+    disabled_color: str = "#64748b",
     hover_color: str = "#ffffff",
     size: int = 18,
 ) -> QIcon:

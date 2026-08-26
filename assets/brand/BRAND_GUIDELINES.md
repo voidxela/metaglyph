@@ -6,16 +6,20 @@ Welcome to the official **MetaGlyph** brand asset kit. This package contains the
 
 ## 1. Brand Palette & Color Specifications
 
-The MetaGlyph visual identity is built around deep midnight indigos, rich electric violet gradients, and chrome/platinum metallic accents.
+The MetaGlyph visual identity is built around sophisticated dark neutral/charcoal surfaces, crisp high-contrast typography, and rich electric violet / magenta purple accents.
 
 | Swatch | Color Name | HEX | RGB | HSL | Primary Use |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| <img src="https://via.placeholder.com/20/290649/000000?text=+" width="20" height="20" /> | **Midnight Indigo** | `#290649` | `rgb(41, 6, 73)` | `hsl(271°, 85%, 15%)` | Primary Wordmark, Light Mode Text |
-| <img src="https://via.placeholder.com/20/120323/000000?text=+" width="20" height="20" /> | **Deep Obsidian** | `#120323` | `rgb(18, 3, 35)` | `hsl(268°, 84%, 7%)` | Dark Mode Surfaces, App Backgrounds |
-| <img src="https://via.placeholder.com/20/49107F/000000?text=+" width="20" height="20" /> | **Electric Violet** | `#49107F` | `rgb(73, 16, 127)` | `hsl(271°, 78%, 28%)` | Accent Brand Elements, Gradient Midtones |
-| <img src="https://via.placeholder.com/20/771EBD/000000?text=+" width="20" height="20" /> | **Vibrant Magenta Violet** | `#771EBD` | `rgb(119, 30, 189)` | `hsl(274°, 73%, 43%)` | Top Ribbon Highlights, UI Accents |
+| <img src="https://via.placeholder.com/20/121316/000000?text=+" width="20" height="20" /> | **Deep Charcoal** | `#121316` | `rgb(18, 19, 22)` | `hsl(225°, 10%, 8%)` | Dark Mode Root App Background |
+| <img src="https://via.placeholder.com/20/18191E/000000?text=+" width="20" height="20" /> | **Dark Slate Surface** | `#18191E` | `rgb(24, 25, 30)` | `hsl(230°, 11%, 11%)` | Sidebar, Navigation, Card Bases |
+| <img src="https://via.placeholder.com/20/1F2127/000000?text=+" width="20" height="20" /> | **Elevated Charcoal** | `#1F2127` | `rgb(31, 33, 39)` | `hsl(225°, 11%, 14%)` | Hover Surfaces, Input Fields, Toolbars |
+| <img src="https://via.placeholder.com/20/333742/000000?text=+" width="20" height="20" /> | **Slate Border** | `#333742` | `rgb(51, 55, 66)` | `hsl(224°, 13%, 23%)` | Component Borders & Dividers |
+| <img src="https://via.placeholder.com/20/771EBD/000000?text=+" width="20" height="20" /> | **Vibrant Brand Violet** | `#771EBD` | `rgb(119, 30, 189)` | `hsl(274°, 73%, 43%)` | Primary Actions, Focus Rings, Brand Highlights |
+| <img src="https://via.placeholder.com/20/8D2CD6/000000?text=+" width="20" height="20" /> | **Electric Violet** | `#8D2CD6` | `rgb(141, 44, 214)` | `hsl(274°, 69%, 51%)` | Button Hovers, Active Navigation States |
+| <img src="https://via.placeholder.com/20/E879F9/000000?text=+" width="20" height="20" /> | **Magenta Glow** | `#E879F9` | `rgb(232, 121, 249)` | `hsl(292°, 91%, 73%)` | Nerd Font Badges, Accent Highlights |
 | <img src="https://via.placeholder.com/20/E9E9E9/000000?text=+" width="20" height="20" /> | **Chrome Sphere Platinum** | `#E9E9E9` | `rgb(233, 233, 233)` | `hsl(0°, 0%, 91%)` | Metallic Sphere Base Tone |
-| <img src="https://via.placeholder.com/20/FFFFFF/000000?text=+" width="20" height="20" /> | **Pure White** | `#FFFFFF` | `rgb(255, 255, 255)` | `hsl(0°, 0%, 100%)` | Dark Mode Wordmark, Specular Highlights |
+| <img src="https://via.placeholder.com/20/CBD5E1/000000?text=+" width="20" height="20" /> | **Slate Light** | `#CBD5E1` | `rgb(203, 213, 225)` | `hsl(213°, 27%, 84%)` | Secondary Typography, Subtitles, Chips |
+| <img src="https://via.placeholder.com/20/FFFFFF/000000?text=+" width="20" height="20" /> | **Pure White** | `#FFFFFF` | `rgb(255, 255, 255)` | `hsl(0°, 0%, 100%)` | Primary Text, Specular Highlights |
 
 ---
 

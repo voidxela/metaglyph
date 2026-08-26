@@ -148,7 +148,7 @@ class MainWindow(QMainWindow):
         self._status_bar.addPermanentWidget(self._status_stats_label)
 
         self._status_version_label = QLabel("v0.1.0", self._status_bar)
-        self._status_version_label.setStyleSheet("color: #6e5a85; font-weight: 600;")
+        self._status_version_label.setStyleSheet("color: #64748b; font-weight: 600;")
         self._status_bar.addPermanentWidget(self._status_version_label)
 
         self.setStatusBar(self._status_bar)

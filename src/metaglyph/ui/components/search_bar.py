@@ -55,7 +55,7 @@ class SearchBar(QWidget):
 
         # Search icon label
         self._icon_label = QLabel(self._container)
-        self._icon_label.setPixmap(render_svg_pixmap("search", color="#8a769f", size=15))
+        self._icon_label.setPixmap(render_svg_pixmap("search", color="#94a3b8", size=15))
         self._icon_label.setFixedSize(15, 15)
 
         # Search line edit
@@ -68,7 +68,7 @@ class SearchBar(QWidget):
         # Clear button
         self._clear_btn = QPushButton(self._container)
         self._clear_btn.setObjectName("searchClearButton")
-        self._clear_btn.setIcon(create_themed_icon("x", normal_color="#8a769f", hover_color="#ffffff", size=13))
+        self._clear_btn.setIcon(create_themed_icon("x", normal_color="#94a3b8", hover_color="#ffffff", size=13))
         self._clear_btn.setIconSize(QSize(13, 13))
         self._clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._clear_btn.setVisible(False)

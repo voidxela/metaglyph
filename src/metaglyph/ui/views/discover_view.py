@@ -143,7 +143,7 @@ class CategoryCardWidget(QFrame):
         icon_label.setFixedSize(26, 26)
         icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_label.setStyleSheet(
-            "background-color: #280e4d; border-radius: 6px; border: 1px solid #471987;"
+            "background-color: #261b36; border-radius: 6px; border: 1px solid #58248c;"
         )
         header_layout.addWidget(icon_label)
 
@@ -171,21 +171,21 @@ class CategoryCardWidget(QFrame):
         examples_layout.setSpacing(5)
 
         ex_prefix = QLabel("Examples:", self)
-        ex_prefix.setStyleSheet("color: #a997be; font-size: 11px; font-weight: 600;")
+        ex_prefix.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 600;")
         examples_layout.addWidget(ex_prefix)
 
         display_examples = examples[:3]
         for ex in display_examples:
             tag = QLabel(ex, self)
             tag.setStyleSheet(
-                "background-color: #1f0b3b; color: #c4b5d4; font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 4px; border: 1px solid #371666;"
+                "background-color: #22252e; color: #cbd5e1; font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 4px; border: 1px solid #333742;"
             )
             examples_layout.addWidget(tag)
 
         if len(examples) > 3:
             extra_tag = QLabel(f"+{len(examples) - 3}", self)
             extra_tag.setStyleSheet(
-                "background-color: #1a0933; color: #8a769f; font-size: 10px; font-weight: 600; padding: 2px 5px; border-radius: 4px; border: 1px solid #2a104f;"
+                "background-color: #1a1c22; color: #94a3b8; font-size: 10px; font-weight: 600; padding: 2px 5px; border-radius: 4px; border: 1px solid #262930;"
             )
             examples_layout.addWidget(extra_tag)
 

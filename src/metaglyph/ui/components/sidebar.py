@@ -96,11 +96,12 @@ class SidebarWidget(QWidget):
 
         self._sync_btn = QPushButton("Sync Catalog", sync_container)
         self._sync_btn.setObjectName("syncBtn")
-        self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#c4b5d4", active_color="#ffffff", size=14))
+        self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#cbd5e1", active_color="#ffffff", size=14))
         self._sync_btn.setIconSize(QSize(14, 14))
         self._sync_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._sync_btn.setStyleSheet(
-            "QPushButton { background-color: #1b0a33; border: 1px solid #371666; color: #c4b5d4; padding: 8px 12px; border-radius: 6px; font-weight: 600; text-align: center; } QPushButton:hover { background-color: #240d47; color: #ffffff; border-color: #5c24a3; }"
+            "QPushButton { background-color: #1f2127; border: 1px solid #333742; color: #cbd5e1; padding: 8px 12px; border-radius: 6px; font-weight: 600; text-align: center; } "
+            "QPushButton:hover { background-color: #262932; color: #ffffff; border-color: #6d28d9; }"
         )
         self._sync_btn.clicked.connect(self._on_sync_clicked)
         sync_layout.addWidget(self._sync_btn)
@@ -153,9 +154,9 @@ class SidebarWidget(QWidget):
         self._is_syncing = is_syncing
         if is_syncing:
             self._sync_btn.setEnabled(False)
-            self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#58446e", active_color="#58446e", size=14))
+            self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#64748b", active_color="#64748b", size=14))
             self._sync_btn.setText(message)
         else:
             self._sync_btn.setEnabled(True)
-            self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#c4b5d4", active_color="#ffffff", size=14))
+            self._sync_btn.setIcon(create_themed_icon("refresh-cw", normal_color="#cbd5e1", active_color="#ffffff", size=14))
             self._sync_btn.setText("Sync Catalog")

@@ -13,25 +13,26 @@ logger = logging.getLogger(__name__)
 
 # Core brand palette tokens specified by BRAND_GUIDELINES.md
 DARK_PALETTE: dict[str, str] = {
-    # Surfaces & Backgrounds (Deep Obsidian brand foundation)
-    "bg_root": "#120323",
-    "bg_surface": "#16072b",
-    "bg_elevated": "#1b0a33",
-    "bg_card": "#1a0933",
-    "bg_card_hover": "#240d47",
-    "bg_card_selected": "#2f105c",
-    "bg_dark": "#0c0217",
+    # Surfaces & Backgrounds (Neutral Dark Charcoal & Slate Gray foundation)
+    "bg_root": "#121316",
+    "bg_surface": "#18191e",
+    "bg_elevated": "#1f2127",
+    "bg_card": "#1a1c22",
+    "bg_card_hover": "#262932",
+    "bg_card_selected": "#282433",
+    "bg_dark": "#0c0d0f",
 
     # Borders
-    "border_subtle": "#2a104f",
-    "border_default": "#371666",
-    "border_highlight": "#5c24a3",
+    "border_subtle": "#262930",
+    "border_default": "#333742",
+    "border_highlight": "#6d28d9",
     "border_accent": "#771ebd",
 
-    # Typography (Pure White & Chrome Sphere Platinum)
+    # Typography (Pure White & Slate neutrals)
     "text_primary": "#ffffff",
-    "text_secondary": "#c4b5d4",
-    "text_muted": "#8a769f",
+    "text_secondary": "#cbd5e1",
+    "text_muted": "#94a3b8",
+    "text_subdued": "#64748b",
     "text_platinum": "#e9e9e9",
 
     # Brand Violet Accents (Vibrant Magenta Violet, Electric Violet, Midnight Indigo)
@@ -91,14 +92,14 @@ class ThemeManager:
 
         if isinstance(target, QApplication):
             palette = QPalette()
-            palette.setColor(QPalette.ColorRole.Window, QColor("#120323"))
+            palette.setColor(QPalette.ColorRole.Window, QColor("#121316"))
             palette.setColor(QPalette.ColorRole.WindowText, QColor("#ffffff"))
-            palette.setColor(QPalette.ColorRole.Base, QColor("#120323"))
-            palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#16072b"))
-            palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#1b0a33"))
+            palette.setColor(QPalette.ColorRole.Base, QColor("#121316"))
+            palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#18191e"))
+            palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#1f2127"))
             palette.setColor(QPalette.ColorRole.ToolTipText, QColor("#ffffff"))
             palette.setColor(QPalette.ColorRole.Text, QColor("#ffffff"))
-            palette.setColor(QPalette.ColorRole.Button, QColor("#1b0a33"))
+            palette.setColor(QPalette.ColorRole.Button, QColor("#1f2127"))
             palette.setColor(QPalette.ColorRole.ButtonText, QColor("#ffffff"))
             palette.setColor(QPalette.ColorRole.BrightText, QColor("#ffffff"))
             palette.setColor(QPalette.ColorRole.Highlight, QColor("#771ebd"))
