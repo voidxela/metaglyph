@@ -693,8 +693,10 @@ class SystemView(QWidget):
         batch_layout.addWidget(self._select_all_check)
 
         self._deselect_all_btn = QPushButton("Deselect All", self._batch_bar)
+        self._deselect_all_btn.setObjectName("deselectAllBtn")
         self._deselect_all_btn.setStyleSheet(
-            "background-color: transparent; color: #8a769f; font-size: 11px; font-weight: 500; border: none; padding: 2px 6px;"
+            "QPushButton { background-color: transparent; color: #c4b5d4; font-size: 11px; font-weight: 500; border: 1px solid #371666; border-radius: 4px; padding: 3px 8px; } "
+            "QPushButton:hover { color: #ffffff; background-color: #240d47; border-color: #5c24a3; }"
         )
         self._deselect_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._deselect_all_btn.clicked.connect(lambda: self.set_all_selected(False))

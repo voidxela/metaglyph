@@ -108,46 +108,40 @@ class DetailPane(QFrame):
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
 
-        # Scroll area to comfortably handle smaller display heights
-        scroll_area = QScrollArea(self)
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # 1. Fixed Top Header (Title, Close, Subtitle, Badges)
+        header_container = QWidget(self)
+        header_container.setObjectName("detailPaneHeader")
+        header_layout = QVBoxLayout(header_container)
+        header_layout.setContentsMargins(16, 16, 16, 10)
+        header_layout.setSpacing(6)
 
-        container = QWidget(scroll_area)
-        main_layout = QVBoxLayout(container)
-        main_layout.setContentsMargins(14, 14, 14, 14)
-        main_layout.setSpacing(10)
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 0)
 
-        # 1. Header Row: Title & Close Button
-        header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(0, 0, 0, 0)
-
-        self._title_label = QLabel("Font Inspector", container)
+        self._title_label = QLabel("Font Inspector", header_container)
         self._title_label.setObjectName("detailPaneTitle")
-        header_layout.addWidget(self._title_label)
+        title_row.addWidget(self._title_label)
 
-        header_layout.addStretch(1)
+        title_row.addStretch(1)
 
-        self._close_btn = QPushButton("✕", container)
+        self._close_btn = QPushButton("✕", header_container)
         self._close_btn.setStyleSheet(
             "background-color: transparent; color: #8a769f; font-size: 14px; font-weight: bold; border: none; padding: 2px 6px;"
         )
         self._close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._close_btn.clicked.connect(self.closed.emit)
-        header_layout.addWidget(self._close_btn)
+        title_row.addWidget(self._close_btn)
 
-        main_layout.addLayout(header_layout)
+        header_layout.addLayout(title_row)
 
-        # Subtitle & Badges
-        self._subtitle_label = QLabel("Select a font to view details", container)
+        self._subtitle_label = QLabel("Select a font to view details", header_container)
         self._subtitle_label.setObjectName("detailPaneSubtitle")
-        main_layout.addWidget(self._subtitle_label)
+        header_layout.addWidget(self._subtitle_label)
 
         # Badges row
-        self._badges_widget = QWidget(container)
+        self._badges_widget = QWidget(header_container)
         self._badges_layout = QHBoxLayout(self._badges_widget)
-        self._badges_layout.setContentsMargins(0, 0, 0, 0)
+        self._badges_layout.setContentsMargins(0, 2, 0, 0)
         self._badges_layout.setSpacing(6)
 
         self._provider_badge = QLabel("Provider", self._badges_widget)
@@ -164,9 +158,23 @@ class DetailPane(QFrame):
         self._badges_layout.addWidget(self._styles_badge)
 
         self._badges_layout.addStretch(1)
-        main_layout.addWidget(self._badges_widget)
+        header_layout.addWidget(self._badges_widget)
 
-        # 2. Nerd Font Counterpart Banner (Dedicated NerdFontBadge component)
+        root_layout.addWidget(header_container)
+
+        # 2. Scrollable Middle Area (Inspector Controls)
+        scroll_area = QScrollArea(self)
+        scroll_area.setObjectName("detailPaneScroll")
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        container = QWidget(scroll_area)
+        main_layout = QVBoxLayout(container)
+        main_layout.setContentsMargins(16, 8, 16, 12)
+        main_layout.setSpacing(10)
+
+        # Nerd Font Counterpart Banner (Dedicated NerdFontBadge component)
         self.nerd_badge = NerdFontBadge(container)
         self.nerd_badge.switch_requested.connect(self._on_nerd_switch_requested)
         main_layout.addWidget(self.nerd_badge)
@@ -177,9 +185,9 @@ class DetailPane(QFrame):
         sep1.setFrameShape(QFrame.Shape.HLine)
         sep1.setStyleSheet("color: #2a104f;")
         main_layout.addWidget(sep1)
-        main_layout.addSpacing(4)
+        main_layout.addSpacing(2)
 
-        # 3. Size Slider Section
+        # Size Slider Section
         size_header_layout = QHBoxLayout()
         size_label = QLabel("Point Size", container)
         size_label.setObjectName("detailSectionHeader")
@@ -196,9 +204,9 @@ class DetailPane(QFrame):
         self._size_slider.setValue(24)
         self._size_slider.valueChanged.connect(self._on_size_changed)
         main_layout.addWidget(self._size_slider)
-        main_layout.addSpacing(6)
+        main_layout.addSpacing(4)
 
-        # 4. Weight & Style Controls
+        # Weight & Style Controls
         style_controls_layout = QHBoxLayout()
         style_controls_layout.setSpacing(8)
 
@@ -230,9 +238,9 @@ class DetailPane(QFrame):
         style_controls_layout.addLayout(italic_box, stretch=1)
 
         main_layout.addLayout(style_controls_layout)
-        main_layout.addSpacing(6)
+        main_layout.addSpacing(4)
 
-        # 5. Interactive Sample Text & Presets
+        # Interactive Sample Text & Presets
         sample_header_layout = QHBoxLayout()
         sample_header = QLabel("Sample Text", container)
         sample_header.setObjectName("detailSectionHeader")
@@ -249,13 +257,13 @@ class DetailPane(QFrame):
 
         self._sample_editor = QPlainTextEdit(container)
         self._sample_editor.setObjectName("detailSampleEditor")
-        self._sample_editor.setMaximumHeight(70)
+        self._sample_editor.setMaximumHeight(65)
         self._sample_editor.setPlainText(get_config().default_sample_text)
         self._sample_editor.textChanged.connect(self._on_sample_text_changed)
         main_layout.addWidget(self._sample_editor)
-        main_layout.addSpacing(6)
+        main_layout.addSpacing(4)
 
-        # 6. Live Preview Box
+        # Live Preview Box
         preview_header = QLabel("Live Rendering", container)
         preview_header.setObjectName("detailSectionHeader")
         main_layout.addWidget(preview_header)
@@ -269,20 +277,7 @@ class DetailPane(QFrame):
         main_layout.addWidget(self._preview)
         main_layout.addSpacing(4)
 
-        # 7. Installation State Banner
-        self._install_status_label = QLabel("", container)
-        self._install_status_label.setObjectName("installStatusBadge")
-        self._install_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._install_status_label.setVisible(False)
-        main_layout.addWidget(self._install_status_label)
-
-        # Feedback notification label (success/error messages)
-        self._feedback_label = QLabel("", container)
-        self._feedback_label.setWordWrap(True)
-        self._feedback_label.setVisible(False)
-        main_layout.addWidget(self._feedback_label)
-
-        # 8. Installation Scope Section
+        # Installation Scope Section
         scope_header = QLabel("Install Target Scope", container)
         scope_header.setObjectName("detailSectionHeader")
         main_layout.addWidget(scope_header)
@@ -298,20 +293,41 @@ class DetailPane(QFrame):
         self._radio_system.setCursor(Qt.CursorShape.PointingHandCursor)
         scope_group.addButton(self._radio_system)
         main_layout.addWidget(self._radio_system)
-        main_layout.addSpacing(8)
+        main_layout.addSpacing(6)
 
-        # 9. Action Buttons Row (Install & Uninstall)
+        scroll_area.setWidget(container)
+        root_layout.addWidget(scroll_area, stretch=1)
+
+        # 3. Pinned Bottom Action Footer (Status, Feedback & Action Buttons)
+        footer_container = QWidget(self)
+        footer_container.setObjectName("detailPaneFooter")
+        footer_layout = QVBoxLayout(footer_container)
+        footer_layout.setContentsMargins(16, 12, 16, 16)
+        footer_layout.setSpacing(8)
+
+        self._install_status_label = QLabel("", footer_container)
+        self._install_status_label.setObjectName("installStatusBadge")
+        self._install_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._install_status_label.setVisible(False)
+        footer_layout.addWidget(self._install_status_label)
+
+        # Feedback notification label (success/error messages)
+        self._feedback_label = QLabel("", footer_container)
+        self._feedback_label.setWordWrap(True)
+        self._feedback_label.setVisible(False)
+        footer_layout.addWidget(self._feedback_label)
+
         self._actions_layout = QVBoxLayout()
         self._actions_layout.setSpacing(6)
 
-        self._install_btn = QPushButton("Install Font Family", container)
+        self._install_btn = QPushButton("Install Font Family", footer_container)
         self._install_btn.setProperty("class", "primary-btn")
         self._install_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._install_btn.setStyleSheet("padding: 10px; font-size: 13px; font-weight: 700;")
         self._install_btn.clicked.connect(self._on_install_clicked)
         self._actions_layout.addWidget(self._install_btn)
 
-        self._uninstall_btn = QPushButton("Uninstall Font Family", container)
+        self._uninstall_btn = QPushButton("Uninstall Font Family", footer_container)
         self._uninstall_btn.setProperty("class", "danger-btn")
         self._uninstall_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._uninstall_btn.setStyleSheet(
@@ -321,10 +337,9 @@ class DetailPane(QFrame):
         self._uninstall_btn.setVisible(False)
         self._actions_layout.addWidget(self._uninstall_btn)
 
-        main_layout.addLayout(self._actions_layout)
+        footer_layout.addLayout(self._actions_layout)
+        root_layout.addWidget(footer_container)
 
-        scroll_area.setWidget(container)
-        root_layout.addWidget(scroll_area)
         self.setLayout(root_layout)
 
     def set_font(self, font: Font) -> None:

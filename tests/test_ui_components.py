@@ -348,7 +348,7 @@ async def test_discover_view_category_clicks_and_counts(
     await discover.refresh_stats()
     assert "3 fonts" in discover._category_cards["Featured"]._count_badge.text()
     assert "4 fonts" in discover._category_cards["Code"]._count_badge.text()
-    assert "1 fonts" in discover._category_cards["Interface"]._count_badge.text()
+    assert "1 font" in discover._category_cards["Interface"]._count_badge.text()
 
 
 # ============================================================================

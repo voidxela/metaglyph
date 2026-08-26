@@ -76,7 +76,6 @@ class FilterBar(QWidget):
         container = QWidget(scroll)
         container.setStyleSheet("background-color: transparent;")
         container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        container.setMinimumWidth(1000)
         main_layout = QVBoxLayout(container)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(6)

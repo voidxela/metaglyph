@@ -174,12 +174,20 @@ class CategoryCardWidget(QFrame):
         ex_prefix.setStyleSheet("color: #a997be; font-size: 11px; font-weight: 600;")
         examples_layout.addWidget(ex_prefix)
 
-        for ex in examples:
+        display_examples = examples[:3]
+        for ex in display_examples:
             tag = QLabel(ex, self)
             tag.setStyleSheet(
-                "background-color: #1f0b3b; color: #c4b5d4; font-size: 10px; padding: 2px 6px; border-radius: 4px; border: 1px solid #371666;"
+                "background-color: #1f0b3b; color: #c4b5d4; font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 4px; border: 1px solid #371666;"
             )
             examples_layout.addWidget(tag)
+
+        if len(examples) > 3:
+            extra_tag = QLabel(f"+{len(examples) - 3}", self)
+            extra_tag.setStyleSheet(
+                "background-color: #1a0933; color: #8a769f; font-size: 10px; font-weight: 600; padding: 2px 5px; border-radius: 4px; border: 1px solid #2a104f;"
+            )
+            examples_layout.addWidget(extra_tag)
 
         examples_layout.addStretch(1)
         main_layout.addLayout(examples_layout)
@@ -188,7 +196,7 @@ class CategoryCardWidget(QFrame):
 
     def set_font_count(self, count: int) -> None:
         """Update category font count label."""
-        self._count_badge.setText(f"{count:,} fonts")
+        self._count_badge.setText(f"{count:,} font" if count == 1 else f"{count:,} fonts")
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
@@ -231,14 +239,14 @@ class DiscoverView(QWidget):
         container = QWidget(scroll)
         container.setObjectName("discoverContainer")
         content_layout = QVBoxLayout(container)
-        content_layout.setContentsMargins(32, 28, 32, 32)
-        content_layout.setSpacing(24)
+        content_layout.setContentsMargins(24, 20, 24, 24)
+        content_layout.setSpacing(20)
 
         # 1. Spotlight Hero Card
         spotlight = QFrame(container)
         spotlight.setObjectName("spotlightCard")
         spotlight_layout = QVBoxLayout(spotlight)
-        spotlight_layout.setContentsMargins(20, 18, 20, 18)
+        spotlight_layout.setContentsMargins(22, 20, 22, 20)
         spotlight_layout.setSpacing(8)
 
         spot_title = QLabel("✦ Discover Curated Typefaces", spotlight)
@@ -281,7 +289,7 @@ class DiscoverView(QWidget):
         # 2-Column Responsive Category Grid
         grid_layout = QGridLayout()
         grid_layout.setContentsMargins(0, 0, 0, 0)
-        grid_layout.setSpacing(16)
+        grid_layout.setSpacing(14)
 
         for idx, item in enumerate(CURATED_CATEGORY_METADATA):
             card = CategoryCardWidget(

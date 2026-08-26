@@ -188,13 +188,13 @@ class FontCard(QFrame):
     def set_selected(self, selected: bool) -> None:
         """Toggle selected highlight state."""
         self._is_selected = selected
+        self.setProperty("class", "selected" if selected else "")
+        self.setProperty("selected", "true" if selected else "false")
         if selected:
-            self.setProperty("class", "selected")
             self.setStyleSheet(
-                "#fontCard { border: 1.5px solid #771ebd; background-color: #250d48; }"
+                "#fontCard { border: 2px solid #8d2cd6; background-color: #250d48; }"
             )
         else:
-            self.setProperty("class", "")
             self.setStyleSheet("")
         self.style().unpolish(self)
         self.style().polish(self)
