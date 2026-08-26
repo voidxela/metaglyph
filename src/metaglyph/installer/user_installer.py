@@ -109,11 +109,15 @@ class UserFontInstaller(BaseInstaller):
 
             for src in font_files:
                 if not src.exists():
-                    errs.append(f"Source file does not exist: {src}")
+                    msg = f"Source file does not exist: {src}"
+                    logger.warning(msg)
+                    errs.append(msg)
                     continue
 
                 if not verify_font_magic_bytes(src):
-                    errs.append(f"File {src.name} is not a valid TTF/OTF font")
+                    msg = f"File {src.name} is not a valid TTF/OTF font"
+                    logger.warning(msg)
+                    errs.append(msg)
                     continue
 
                 dest = target_dir / src.name
@@ -129,7 +133,9 @@ class UserFontInstaller(BaseInstaller):
                     temp_dest.replace(dest)
                     copied.append(dest)
                 except Exception as e:
-                    errs.append(f"Failed to copy {src.name}: {e}")
+                    msg = f"Failed to copy {src.name}: {e}"
+                    logger.warning(msg)
+                    errs.append(msg)
                     if temp_dest.exists():
                         try:
                             logger.info("Removing temporary file: %s", temp_dest)

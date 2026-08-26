@@ -178,7 +178,7 @@ class FontsourceProvider(BaseFontProvider):
         client = await self.get_client()
 
         # If font has no variants, create default 400 normal
-        variants_to_download = font.variants or [
+        raw_variants = font.variants or [
             FontVariant(
                 font_id=font.id,
                 provider=self.name,
@@ -188,6 +188,15 @@ class FontsourceProvider(BaseFontProvider):
                 download_url=self.build_cdn_variant_url(font.id, 400, "normal"),
             )
         ]
+
+        # Deduplicate variants by (weight, style, file_format) to avoid duplicate downloads / file collisions
+        seen_keys: set[tuple[int, str, str]] = set()
+        variants_to_download: list[FontVariant] = []
+        for v in raw_variants:
+            key = (v.weight, v.style, v.file_format)
+            if key not in seen_keys:
+                seen_keys.add(key)
+                variants_to_download.append(v)
 
         # Download up to 8 variants concurrently
         semaphore = asyncio.Semaphore(8)
@@ -206,7 +215,6 @@ class FontsourceProvider(BaseFontProvider):
             except Exception as exc:
                 logger.warning("Failed to download variant %s: %s", v.download_url, exc)
                 return None
-
 
         tasks = [_download_one(v) for v in variants_to_download]
         results = await asyncio.gather(*tasks)

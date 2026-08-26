@@ -380,6 +380,60 @@ async def test_fontsource_download_font_family(temp_dir: Path) -> None:
     await provider.close()
 
 
+@pytest.mark.asyncio
+async def test_fontsource_download_font_family_deduplication(temp_dir: Path) -> None:
+    """Verify that duplicate variants across providers/subsets are deduplicated before downloading."""
+    ttf_data = synthesize_test_font_bytes("Arimo", "Regular")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=ttf_data)
+
+    client = httpx.AsyncClient(transport=create_mock_transport(handler))
+    provider = FontsourceProvider(client=client)
+
+    font = Font(
+        id="arimo",
+        family_name="Arimo",
+        category="sans-serif",
+        primary_provider="fontsource",
+        last_synced_at=1000,
+        variants=[
+            # Multiple duplicate variants (e.g. from multiple providers or multiple catalog syncs)
+            FontVariant(font_id="arimo", provider="fontsource", style="normal", weight=400, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-400-normal.ttf"),
+            FontVariant(font_id="arimo", provider="fontsource", style="italic", weight=400, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-400-italic.ttf"),
+            FontVariant(font_id="arimo", provider="fontsource", style="normal", weight=500, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-500-normal.ttf"),
+            FontVariant(font_id="arimo", provider="fontsource", style="italic", weight=500, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-500-italic.ttf"),
+            FontVariant(font_id="arimo", provider="fontsource", style="normal", weight=600, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-600-normal.ttf"),
+            FontVariant(font_id="arimo", provider="fontsource", style="italic", weight=600, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-600-italic.ttf"),
+            FontVariant(font_id="arimo", provider="fontsource", style="normal", weight=700, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-700-normal.ttf"),
+            FontVariant(font_id="arimo", provider="fontsource", style="italic", weight=700, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-700-italic.ttf"),
+            # Duplicate entries that would cause file overwrite / race conditions
+            FontVariant(font_id="arimo", provider="fontsource", style="normal", weight=400, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-400-normal.ttf"),
+            FontVariant(font_id="arimo", provider="fontsource", style="italic", weight=400, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-400-italic.ttf"),
+            FontVariant(font_id="arimo", provider="fontsource", style="normal", weight=400, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-400-normal.ttf"),
+            FontVariant(font_id="arimo", provider="fontsource", style="normal", weight=700, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-700-normal.ttf"),
+            FontVariant(font_id="arimo", provider="fontsource", style="italic", weight=700, file_format="ttf", download_url="https://cdn.jsdelivr.net/fontsource/fonts/arimo@latest/latin-700-italic.ttf"),
+        ],
+    )
+
+    out_dir = temp_dir / "dl_fontsource_arimo"
+    downloaded = await provider.download_font_family(font, out_dir)
+
+    # Should have downloaded exactly 8 unique files (4 weights x 2 styles), not 13 duplicate files
+    assert len(downloaded) == 8
+    downloaded_names = {f.name for f in downloaded}
+    assert "Arimo-400-normal.ttf" in downloaded_names
+    assert "Arimo-400-italic.ttf" in downloaded_names
+    assert "Arimo-500-normal.ttf" in downloaded_names
+    assert "Arimo-500-italic.ttf" in downloaded_names
+    assert "Arimo-600-normal.ttf" in downloaded_names
+    assert "Arimo-600-italic.ttf" in downloaded_names
+    assert "Arimo-700-normal.ttf" in downloaded_names
+    assert "Arimo-700-italic.ttf" in downloaded_names
+
+    await provider.close()
+
+
 # ---------------------------------------------------------------------------
 # Nerd Fonts Provider Tests
 # ---------------------------------------------------------------------------

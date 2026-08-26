@@ -224,10 +224,14 @@ class SystemFontInstaller(BaseInstaller):
 
         for src in font_files:
             if not src.exists():
-                errors.append(f"Source file does not exist: {src}")
+                msg = f"Source file does not exist: {src}"
+                logger.warning(msg)
+                errors.append(msg)
                 continue
             if not verify_font_magic_bytes(src):
-                errors.append(f"File {src.name} is not a valid TTF/OTF font")
+                msg = f"File {src.name} is not a valid TTF/OTF font"
+                logger.warning(msg)
+                errors.append(msg)
                 continue
 
             valid_files.append({

@@ -255,3 +255,42 @@ async def test_main_window_catalog_sync_error_dialog(repository: FontRepository)
         assert mock_warn.called
         assert "Sync Failed" in mock_warn.call_args[0][1]
         assert "Failed to connect to Fontsource CDN" in mock_warn.call_args[0][2]
+
+
+@pytest.mark.asyncio
+async def test_installer_logs_warnings_on_invalid_files(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Verify that user installer and system installer log WARNING for missing or invalid font files."""
+    caplog.set_level(logging.WARNING, logger="metaglyph")
+    caplog.clear()
+
+    db_file = tmp_path / "db" / "test_warn.db"
+    db_mgr = DatabaseManager(db_file)
+    await db_mgr.initialize()
+    repo = FontRepository(db_mgr)
+
+    user_target = tmp_path / "user_fonts"
+    user_installer = UserFontInstaller(repository=repo, target_dir_override=user_target)
+
+    # 1. Non-existent file
+    missing_file = tmp_path / "Missing.ttf"
+    # 2. Corrupt/non-font file
+    corrupt_file = tmp_path / "Corrupt.ttf"
+    corrupt_file.write_text("not a font binary")
+
+    sample_font = Font(
+        id="test-font",
+        family_name="Test Font",
+        category="sans-serif",
+        primary_provider="fontsource",
+        last_synced_at=1700000000,
+    )
+
+    res = await user_installer.install_font(sample_font, [missing_file, corrupt_file])
+    assert res.success is False
+    assert any("Source file does not exist" in rec.message and rec.levelno == logging.WARNING for rec in caplog.records)
+    assert any("is not a valid TTF/OTF font" in rec.message and rec.levelno == logging.WARNING for rec in caplog.records)
+
+    await db_mgr.close()
